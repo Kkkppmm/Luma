@@ -33,6 +33,14 @@ GSETTINGS_SCHEMA_DIR=build/data ./build/src/luma-builder
 - Projects default to `~/LumaProjects`.
 - Press `F1` for Help, `Ctrl+S` to save, `Ctrl+Shift+F` to format the document.
 
+## Screenshots
+
+See [docs/screenshots/](docs/screenshots/) for images of every window and the editor menus.
+
+![Home](docs/screenshots/01-home.png)
+![Editor context menu](docs/screenshots/11-editor-context-menu.png)
+![All windows](docs/screenshots/13-all-windows.png)
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
