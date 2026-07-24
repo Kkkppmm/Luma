@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Luma Builder
+Comment=Create and develop GNOME applications with Luma
+Exec=luma-builder
+Icon=io.github.kkkppmm.LumaBuilder
+Terminal=false
+Type=Application
+Categories=Development;IDE;GNOME;GTK;
+Keywords=IDE;Builder;GTK;GNOME;Luma;Development;
+StartupNotify=true

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Luma Builder — GTK4 / libadwaita IDE</title>
+  <meta name="description" content="Luma Builder is a lightweight GTK4 / libadwaita IDE for creating GNOME apps in C, C++, and Python. Download .deb, .rpm, or portable packages." />
+  <meta property="og:title" content="Luma Builder" />
+  <meta property="og:description" content="Create GNOME applications with templates, Build/Run, and an auto-updater." />
+  <meta property="og:image" content="assets/01-home.png" />
+  <link rel="icon" href="assets/luma-icon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Sora:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="sky" aria-hidden="true"></div>
+
+  <header class="top">
+    <a class="brand" href="#top">
+      <img src="assets/luma-icon.svg" width="36" height="36" alt="" />
+      <span>Luma</span>
+    </a>
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#downloads">Downloads</a>
+      <a href="#gallery">Gallery</a>
+      <a class="nav-git" href="https://github.com/Kkkppmm/Luma" rel="noopener">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Luma Builder</p>
+        <h1>Build GNOME apps<br />in the light.</h1>
+        <p class="lede">
+          A focused GTK4 / libadwaita IDE — starter templates, meson Build &amp; Run,
+          and GitHub auto-updates for Linux.
+        </p>
+        <div class="cta">
+          <a class="btn primary" href="#downloads">Download 0.3.3</a>
+          <a class="btn ghost" href="https://github.com/Kkkppmm/Luma" rel="noopener">View source</a>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <img src="assets/01-home.png" alt="Luma Builder home screen" width="1280" height="800" />
+      </div>
+    </section>
+
+    <section id="features" class="features">
+      <h2>Everything you need to start</h2>
+      <p class="section-lede">From empty folder to running window without fighting the toolchain.</p>
+      <ul class="feature-list">
+        <li>
+          <strong>36 project templates</strong>
+          <span>GNOME, GTK, editor, console, CMake, and Python / PyGObject starters.</span>
+        </li>
+        <li>
+          <strong>Build &amp; Run</strong>
+          <span>Meson compile for C/C++, and Python projects launch with <code>python3</code>.</span>
+        </li>
+        <li>
+          <strong>Editor tools</strong>
+          <span>File tree, format / indent / comment from the right-click menu.</span>
+        </li>
+        <li>
+          <strong>Auto-updater</strong>
+          <span>Checks GitHub releases and installs .deb, .rpm, or portable .tar.gz.</span>
+        </li>
+      </ul>
+    </section>
+
+    <section id="downloads" class="downloads">
+      <h2>Downloads</h2>
+      <p class="section-lede">
+        Latest release <strong>v0.3.3</strong> — pick the package for your distro.
+        Checksums ship with every release.
+      </p>
+      <div class="dl-grid">
+        <a class="dl" href="https://github.com/Kkkppmm/Luma/releases/download/v0.3.3/luma-builder_0.3.3_amd64.deb">
+          <span class="dl-kind">Debian / Ubuntu</span>
+          <span class="dl-file">luma-builder_0.3.3_amd64.deb</span>
+          <span class="dl-cta">Download .deb</span>
+        </a>
+        <a class="dl" href="https://github.com/Kkkppmm/Luma/releases/download/v0.3.3/luma-builder-0.3.3-2.x86_64.rpm">
+          <span class="dl-kind">Fedora / RHEL-like</span>
+          <span class="dl-file">luma-builder-0.3.3-2.x86_64.rpm</span>
+          <span class="dl-cta">Download .rpm</span>
+        </a>
+        <a class="dl" href="https://github.com/Kkkppmm/Luma/releases/download/v0.3.3/luma-builder-0.3.3-linux-amd64.tar.gz">
+          <span class="dl-kind">Portable</span>
+          <span class="dl-file">luma-builder-0.3.3-linux-amd64.tar.gz</span>
+          <span class="dl-cta">Download .tar.gz</span>
+        </a>
+      </div>
+      <p class="dl-meta">
+        <a href="https://github.com/Kkkppmm/Luma/releases/download/v0.3.3/SHA256SUMS">SHA256SUMS</a>
+        ·
+        <a href="https://github.com/Kkkppmm/Luma/releases/latest">All releases</a>
+        ·
+        <a href="https://github.com/Kkkppmm/Luma#build--run">Build from source</a>
+      </p>
+      <pre class="install-hint" aria-label="Install examples"><code># Debian / Ubuntu
+sudo apt install ./luma-builder_0.3.3_amd64.deb
+
+# Fedora
+sudo dnf install ./luma-builder-0.3.3-2.x86_64.rpm
+
+# Portable
+tar xf luma-builder-0.3.3-linux-amd64.tar.gz
+./luma-builder-0.3.3-linux-amd64/run-luma-builder.sh</code></pre>
+    </section>
+
+    <section id="gallery" class="gallery">
+      <h2>Inside Luma</h2>
+      <p class="section-lede">Homescreen, editor, tools, and companion windows.</p>
+      <figure>
+        <img src="assets/10-editor.png" alt="Editor with file tree and build log" loading="lazy" />
+        <figcaption>Editor — files, Build / Run, build log</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/11-editor-context-menu.png" alt="Editor context menu with format tools" loading="lazy" />
+        <figcaption>Right-click format tools</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/08-sdk-manager.png" alt="SDK Manager window" loading="lazy" />
+        <figcaption>SDK Manager — Flatpak GNOME runtimes</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/13-all-windows.png" alt="All Luma Builder windows together" loading="lazy" />
+        <figcaption>Home, Help, Docs, SDK, About</figcaption>
+      </figure>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="foot-brand">
+      <img src="assets/luma-icon.svg" width="28" height="28" alt="" />
+      <span>Luma Builder</span>
+    </div>
+    <p>MIT licensed · <a href="https://github.com/Kkkppmm/Luma">Kkkppmm/Luma</a></p>
+  </footer>
+</body>
+</html>
