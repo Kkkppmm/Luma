@@ -4,7 +4,7 @@ Lightweight GTK4 / libadwaita IDE for creating GNOME applications in **C** and *
 
 ## Features
 
-- Homescreen with **New Project**, **Recent Projects**, and menu access to Help / Docs / SDK / Updates / About
+- Homescreen with **New Project** (30+ templates), **Recent Projects**, and menu access to Help / Docs / SDK / Updates / About
 - **SDK Manager** window to download GNOME Platform / Sdk Flatpak runtimes
 - Editor with a **file tree**, **Build / Run** (meson), and **right-click tools** (Format, Indent, Trim, Sort Lines, Comment)
 - **Auto-updater** that checks GitHub releases and can install `.deb` / `.rpm` / portable `.tar.gz`

@@ -28,6 +28,7 @@ install_data(
   '../docs/getting-started.md',
   '../docs/editor-guide.md',
   '../docs/sdk-guide.md',
+  '../docs/templates.md',
   install_dir: join_paths(get_option('datadir'), 'doc', 'luma-builder'),
 )
 

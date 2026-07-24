@@ -43,7 +43,23 @@ typedef struct {
   AdwEntryRow *name_row;
   AdwEntryRow *dir_row;
   AdwComboRow *tmpl_row;
+  GabTemplateInfoC *templates;
+  int template_count;
+  GtkLabel *tmpl_desc;
 } CreateDialogData;
+
+static void
+on_template_selected (GObject *obj, GParamSpec *pspec, gpointer user_data)
+{
+  (void) obj;
+  (void) pspec;
+  CreateDialogData *data = user_data;
+  guint selected = adw_combo_row_get_selected (data->tmpl_row);
+  if (data->tmpl_desc == NULL || data->templates == NULL ||
+      selected >= (guint) data->template_count)
+    return;
+  gtk_label_set_text (data->tmpl_desc, data->templates[selected].description);
+}
 
 static void
 on_create_response (AdwAlertDialog *dialog, GAsyncResult *result, gpointer user_data)
@@ -52,6 +68,7 @@ on_create_response (AdwAlertDialog *dialog, GAsyncResult *result, gpointer user_
   const char *response = adw_alert_dialog_choose_finish (dialog, result);
   if (g_strcmp0 (response, "create") != 0)
     {
+      gab_project_free_templates (data->templates, data->template_count);
       g_free (data);
       return;
     }
@@ -59,12 +76,15 @@ on_create_response (AdwAlertDialog *dialog, GAsyncResult *result, gpointer user_
   const char *name = gtk_editable_get_text (GTK_EDITABLE (data->name_row));
   const char *parent = gtk_editable_get_text (GTK_EDITABLE (data->dir_row));
   guint selected = adw_combo_row_get_selected (data->tmpl_row);
-  const char *tmpl = selected == 1 ? "gtk4" : "gtk4-adwaita";
+  const char *tmpl = "gtk4-adwaita";
+  if (data->templates != NULL && selected < (guint) data->template_count)
+    tmpl = data->templates[selected].id;
 
   if (name == NULL || *name == '\0')
     {
       show_message (GTK_WIDGET (data->self), "New Project",
                     "Please enter a project name.");
+      gab_project_free_templates (data->templates, data->template_count);
       g_free (data);
       return;
     }
@@ -76,12 +96,14 @@ on_create_response (AdwAlertDialog *dialog, GAsyncResult *result, gpointer user_
       show_message (GTK_WIDGET (data->self), "New Project",
                     out_error ? out_error : "Failed to create project");
       free (out_error);
+      gab_project_free_templates (data->templates, data->template_count);
       g_free (data);
       return;
     }
 
   emit_action (data->self, "open-project", out_path);
   free (out_path);
+  gab_project_free_templates (data->templates, data->template_count);
   g_free (data);
 }
 
@@ -89,9 +111,13 @@ static void
 on_new_project (GtkButton *btn, GabHomescreen *self)
 {
   (void) btn;
+  int tmpl_count = 0;
+  GabTemplateInfoC *templates = gab_project_list_templates (&tmpl_count);
+
   AdwAlertDialog *dialog =
       ADW_ALERT_DIALOG (adw_alert_dialog_new (
-          "New Project", "Create a GTK4 application project."));
+          "New Project",
+          "Pick a starter template — GNOME, GTK, console, libraries, and more."));
   adw_alert_dialog_add_response (dialog, "cancel", "Cancel");
   adw_alert_dialog_add_response (dialog, "create", "Create");
   adw_alert_dialog_set_response_appearance (dialog, "create",
@@ -112,15 +138,28 @@ on_new_project (GtkButton *btn, GabHomescreen *self)
   gtk_editable_set_text (GTK_EDITABLE (dir_row), def_dir);
   free (def_dir);
 
-  GtkStringList *model = gtk_string_list_new (
-      (const char *[]){ "GTK4 + libadwaita", "GTK4 only", NULL });
+  GtkStringList *model = gtk_string_list_new (NULL);
+  for (int i = 0; i < tmpl_count; i++)
+    gtk_string_list_append (model, templates[i].display_title);
+
   AdwComboRow *tmpl_row = ADW_COMBO_ROW (adw_combo_row_new ());
   adw_preferences_row_set_title (ADW_PREFERENCES_ROW (tmpl_row), "Template");
   adw_combo_row_set_model (tmpl_row, G_LIST_MODEL (model));
+  if (tmpl_count > 0)
+    adw_combo_row_set_selected (tmpl_row, 0);
+
+  GtkWidget *desc = gtk_label_new (
+      tmpl_count > 0 ? templates[0].description : "");
+  gtk_widget_add_css_class (desc, "dim-label");
+  gtk_label_set_wrap (GTK_LABEL (desc), TRUE);
+  gtk_label_set_xalign (GTK_LABEL (desc), 0.0);
+  gtk_widget_set_margin_start (desc, 12);
+  gtk_widget_set_margin_end (desc, 12);
 
   gtk_box_append (GTK_BOX (box), GTK_WIDGET (name_row));
   gtk_box_append (GTK_BOX (box), GTK_WIDGET (dir_row));
   gtk_box_append (GTK_BOX (box), GTK_WIDGET (tmpl_row));
+  gtk_box_append (GTK_BOX (box), desc);
   adw_alert_dialog_set_extra_child (dialog, box);
 
   CreateDialogData *data = g_new0 (CreateDialogData, 1);
@@ -128,6 +167,12 @@ on_new_project (GtkButton *btn, GabHomescreen *self)
   data->name_row = name_row;
   data->dir_row = dir_row;
   data->tmpl_row = tmpl_row;
+  data->templates = templates;
+  data->template_count = tmpl_count;
+  data->tmpl_desc = GTK_LABEL (desc);
+
+  g_signal_connect (tmpl_row, "notify::selected", G_CALLBACK (on_template_selected),
+                    data);
 
   GtkRoot *root = gtk_widget_get_root (GTK_WIDGET (self));
   adw_alert_dialog_choose (dialog, GTK_WIDGET (root), NULL,
@@ -358,7 +403,7 @@ gab_homescreen_init (GabHomescreen *self)
   self->actions_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 10);
   gtk_box_append (GTK_BOX (self->actions_box),
                   make_action_card ("document-new-symbolic", "New Project",
-                                    "Start a GTK4 or libadwaita application",
+                                    "Choose from 30+ GNOME, GTK, console, and library templates",
                                     G_CALLBACK (on_new_project), self));
   gtk_box_append (GTK_BOX (self->actions_box),
                   make_action_card ("document-open-symbolic", "Open Project",

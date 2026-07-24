@@ -4,7 +4,7 @@ Welcome to **Luma Builder** — a lightweight IDE for GTK4 and libadwaita apps i
 
 ## Home
 
-- **New Project** — create a GTK4 / libadwaita template
+- **New Project** — choose from **30+ starter templates** (GNOME, GTK, console, libraries, CMake, Python, Flatpak)
 - **Recent Projects** — reopen past work
 - **☰ menu** — SDK Manager, Check for Updates, Help, Docs, About
 - **SDK Manager** card — download GNOME Platform / Sdk runtimes
@@ -26,4 +26,4 @@ Welcome to **Luma Builder** — a lightweight IDE for GTK4 and libadwaita apps i
 - `F1` — Help
 - `Ctrl+Q` — Quit
 
-See also [updates.md](updates.md) for the GitHub auto-install flow.
+See also [updates.md](updates.md) for the GitHub auto-install flow and [templates.md](templates.md) for the full template list.

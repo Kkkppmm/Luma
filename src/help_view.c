@@ -133,7 +133,7 @@ gab_help_view_init (GabHelpView *self)
 
   gtk_stack_add_named (self->stack,
                        make_page ("Homescreen",
-                                  "• New Project — scaffold a Meson GTK4 (+ optional Adwaita) app\n"
+                                  "• New Project — pick from 30+ Meson/CMake/Python starters\n"
                                   "• Open Project — choose any folder of sources\n"
                                   "• Recent Projects — one-click reopen\n"
                                   "• SDK Manager — install Platform / Sdk Flatpak runtimes\n"

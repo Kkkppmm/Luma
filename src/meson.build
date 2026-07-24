@@ -17,6 +17,7 @@ sources = files(
   'about_view.c',
   'project_manager.cpp',
   'project_manager_c.cpp',
+  'project_templates.cpp',
   'sdk_manager.cpp',
   'sdk_manager_c.cpp',
   'code_formatter.cpp',

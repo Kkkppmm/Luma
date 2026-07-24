@@ -1,5 +1,7 @@
 #pragma once
 
+#include "project_templates.hpp"
+
 #include <string>
 #include <vector>
 
@@ -17,12 +19,10 @@ public:
                                                        int max_depth = 8);
   static bool is_project_dir(const std::string &path);
   static std::string detect_language(const std::string &path);
+  static std::vector<GabTemplateMeta> list_templates();
 
 private:
   static bool write_text_file(const std::string &path, const std::string &contents,
                               std::string &error);
   static bool ensure_dir(const std::string &path, std::string &error);
-  static std::string template_meson(const GabProjectInfo &info, bool with_adwaita);
-  static std::string template_main_c(const GabProjectInfo &info, bool with_adwaita);
-  static std::string template_desktop(const GabProjectInfo &info);
 };
