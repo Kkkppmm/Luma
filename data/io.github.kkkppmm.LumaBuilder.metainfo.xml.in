@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.kkkppmm.LumaBuilder</id>
+  <name>Luma Builder</name>
+  <summary>Create and develop GNOME applications</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <description>
+    <p>
+      Luma Builder is a lightweight IDE for creating GTK4 and libadwaita
+      applications. It provides a homescreen for new and recent projects,
+      built-in documentation, GNOME SDK downloads, and a code editor with
+      a file tree and right-click formatting tools.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.kkkppmm.LumaBuilder.desktop</launchable>
+  <releases>
+    <release version="0.1.0" date="2026-07-24"/>
+  </releases>
+  <content_rating type="oars-1.1"/>
+</component>
