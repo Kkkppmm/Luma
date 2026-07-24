@@ -966,34 +966,17 @@ bool GabProjectTemplates::generate(const GabProjectInfo &info, std::string &erro
     files.emplace_back("src/main.cpp", "int main(){ return 0; }\n");
     files.emplace_back("README.md", readme(n, "Empty Meson C++ skeleton.", meson_hint(info)));
   } else if (tid == "python-gi") {
-    files.emplace_back("meson.build",
-                       "project('" + n +
-                           "', version: '0.1.0')\n"
-                           "install_data('src/" +
-                           n +
-                           ".py', install_dir: get_option('bindir'), rename: '" + n +
-                           "')\n");
-    files.emplace_back("src/" + n + ".py",
-                       "#!/usr/bin/env python3\n"
-                       "import gi\n"
-                       "gi.require_version('Gtk', '4.0')\n"
-                       "from gi.repository import Gtk, Gio\n\n"
-                       "class App(Gtk.Application):\n"
-                       "    def __init__(self):\n"
-                       "        super().__init__(application_id='" +
-                           app_id(info) +
-                           "')\n"
-                           "    def do_activate(self):\n"
-                           "        win = Gtk.ApplicationWindow(application=self, title='" +
-                           n +
-                           "')\n"
-                           "        win.set_default_size(480, 320)\n"
-                           "        win.set_child(Gtk.Label(label='Hello from Python + GTK4'))\n"
-                           "        win.present()\n\n"
-                           "if __name__ == '__main__':\n"
-                           "    raise SystemExit(App().run())\n");
-    /* Fix python - do_activate indentation wrong. Rewrite properly. */
-    files.pop_back();
+    files.emplace_back(
+        "meson.build",
+        "project('" + n +
+            "', version: '0.1.0')\n"
+            "# Packaging only — Luma Run launches: python3 src/" +
+            n +
+            ".py\n"
+            "install_data('src/" +
+            n +
+            ".py', install_dir: get_option('bindir'), rename: '" + n +
+            "', install_mode: 'rwxr-xr-x')\n");
     files.emplace_back(
         "src/" + n + ".py",
         "#!/usr/bin/env python3\n"
@@ -1015,8 +998,10 @@ bool GabProjectTemplates::generate(const GabProjectInfo &info, std::string &erro
             "if __name__ == '__main__':\n"
             "    raise SystemExit(App().run())\n");
     files.emplace_back("README.md",
-                       readme(n, "PyGObject GTK4 window.\n\nRun directly:\n```bash\npython3 src/" +
-                                     n + ".py\n```",
+                       readme(n,
+                              "PyGObject GTK4 window.\n\n"
+                              "In Luma Builder use **Run** (or):\n```bash\npython3 src/" +
+                                  n + ".py\n```",
                               "python3 src/" + n + ".py"));
   } else {
     error = "Unknown template: " + info.template_id;

@@ -19,7 +19,7 @@ From the **SDK Manager** you can install:
 1. Open **SDK Manager** from the homescreen.
 2. Choose a GNOME version (for example 46 or 47).
 3. Click **Install** next to Platform or Sdk.
-4. App Builder runs `flatpak install --user` non-interactively.
+4. Luma Builder runs `flatpak install --user` non-interactively.
 
 You need network access and the Flathub remote configured:
 
@@ -36,4 +36,4 @@ flatpak-builder --user --force-clean build-dir org.example.App.json
 ```
 
 Or develop against system packages (`libgtk-4-dev`, `libadwaita-1-dev`)
-without Flatpak — App Builder works with both workflows.
+without Flatpak — Luma Builder works with both workflows.

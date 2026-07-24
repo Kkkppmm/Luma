@@ -76,18 +76,21 @@ bool GabBuildRunner::build(const std::string &project_path, std::string &error,
   return true;
 }
 
-std::string GabBuildRunner::find_binary(const std::string &project_path) {
-  std::string name;
+static std::string
+read_meson_project_name(const std::string &project_path) {
   std::ifstream meson(project_path + "/meson.build");
-  if (meson) {
-    std::string contents((std::istreambuf_iterator<char>(meson)),
-                         std::istreambuf_iterator<char>());
-    std::smatch m;
-    if (std::regex_search(contents, m,
-                          std::regex("project\\s*\\(\\s*'([^']+)'"))) {
-      name = m[1].str();
-    }
-  }
+  if (!meson)
+    return {};
+  std::string contents((std::istreambuf_iterator<char>(meson)),
+                       std::istreambuf_iterator<char>());
+  std::smatch m;
+  if (std::regex_search(contents, m, std::regex("project\\s*\\(\\s*'([^']+)'")))
+    return m[1].str();
+  return {};
+}
+
+std::string GabBuildRunner::find_binary(const std::string &project_path) {
+  std::string name = read_meson_project_name(project_path);
 
   std::vector<fs::path> candidates;
   std::error_code ec;
@@ -117,20 +120,70 @@ std::string GabBuildRunner::find_binary(const std::string &project_path) {
   return {};
 }
 
+std::string GabBuildRunner::find_python_script(const std::string &project_path) {
+  std::string name = read_meson_project_name(project_path);
+  std::error_code ec;
+
+  if (!name.empty()) {
+    fs::path preferred = fs::path(project_path) / "src" / (name + ".py");
+    if (fs::is_regular_file(preferred, ec))
+      return preferred.string();
+    preferred = fs::path(project_path) / (name + ".py");
+    if (fs::is_regular_file(preferred, ec))
+      return preferred.string();
+  }
+
+  fs::path src = fs::path(project_path) / "src";
+  if (fs::is_directory(src, ec)) {
+    for (auto it = fs::directory_iterator(src, ec); it != fs::directory_iterator();
+         ++it) {
+      if (ec)
+        break;
+      if (!it->is_regular_file())
+        continue;
+      if (it->path().extension() == ".py")
+        return it->path().string();
+    }
+  }
+
+  /* Root-level .py fallback */
+  for (auto it = fs::directory_iterator(project_path, ec);
+       it != fs::directory_iterator(); ++it) {
+    if (ec)
+      break;
+    if (!it->is_regular_file())
+      continue;
+    if (it->path().extension() == ".py")
+      return it->path().string();
+  }
+  return {};
+}
+
 bool GabBuildRunner::run(const std::string &project_path, std::string &error,
                          LogFn log) {
   if (!build(project_path, error, log))
     return false;
+
   std::string bin = find_binary(project_path);
-  if (bin.empty()) {
-    error = "Build succeeded but no runnable binary was found under build/";
-    return false;
+  std::string cmd;
+  if (!bin.empty()) {
+    if (log)
+      log("Running " + bin + " …\n");
+    cmd = "nohup \"" + bin + "\" >/tmp/luma-run-app.log 2>&1 & echo $!";
+  } else {
+    /* Python / install_data-only templates have nothing under build/ */
+    std::string py = find_python_script(project_path);
+    if (py.empty()) {
+      error = "Build succeeded but no runnable binary was found under build/ "
+              "(and no Python entry script under src/).";
+      return false;
+    }
+    if (log)
+      log("Running python3 " + py + " …\n");
+    cmd = "nohup python3 \"" + py + "\" >/tmp/luma-run-app.log 2>&1 & echo $!";
   }
-  if (log)
-    log("Running " + bin + " …\n");
+
   int code = 0;
-  /* Launch detached so the IDE stays responsive */
-  std::string cmd = "nohup \"" + bin + "\" >/tmp/luma-run-app.log 2>&1 & echo $!";
   std::string out = run_command(cmd, project_path, code, log);
   if (code != 0) {
     error = "Failed to launch:\n" + out;

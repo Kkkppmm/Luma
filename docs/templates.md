@@ -13,4 +13,4 @@ New Project offers **36 starters** in a searchable template list (grouped by cat
 | Empty | Bare Meson C / C++ |
 | Python | PyGObject GTK4 |
 
-Templates generate a ready-to-build tree under `~/LumaProjects/<name>` (or the folder you choose), then open in the editor. Use **Build** / **Run** for Meson projects.
+Templates generate a ready-to-build tree under `~/LumaProjects/<name>` (or the folder you choose), then open in the editor. Use **Build** / **Run** for Meson projects. Python templates have no compiled binary under `build/` — **Run** launches `python3 src/<name>.py` instead.
