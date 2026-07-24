@@ -118,7 +118,7 @@ template_row_catalog_index (GtkListBoxRow *row)
 static void
 update_template_description (CreateDialogData *data)
 {
-  if (data == NULL || data->tmpl_desc == NULL)
+  if (data == NULL || data->tmpl_desc == NULL || !GTK_IS_LABEL (data->tmpl_desc))
     return;
   if (data->templates != NULL && data->selected_index >= 0 &&
       data->selected_index < data->template_count)
@@ -136,7 +136,7 @@ static void
 select_template_row (CreateDialogData *data, GtkListBoxRow *row)
 {
   int index;
-  if (data == NULL)
+  if (data == NULL || data->window == NULL)
     return;
   index = template_row_catalog_index (row);
   if (index < 0 || index >= data->template_count)
@@ -152,8 +152,12 @@ select_template_row (CreateDialogData *data, GtkListBoxRow *row)
 static void
 on_template_row_selected (GtkListBox *box, GtkListBoxRow *row, gpointer user_data)
 {
+  CreateDialogData *data = user_data;
   (void) box;
-  select_template_row (user_data, row);
+  /* During window teardown ListBox emits row-selected(NULL); ignore it. */
+  if (data == NULL || row == NULL)
+    return;
+  select_template_row (data, row);
 }
 
 static void
@@ -274,6 +278,46 @@ on_browse_folder (GtkButton *btn, gpointer user_data)
                                  on_browse_folder_done, data);
 }
 
+typedef struct {
+  GabHomescreen *self;
+  GtkWindow *window;
+  char *path;
+} FinishCreateData;
+
+static gboolean
+finish_create_idle (gpointer user_data)
+{
+  FinishCreateData *finish = user_data;
+  GabHomescreen *self;
+  char *path;
+  CreateDialogData *data;
+
+  if (finish == NULL)
+    return G_SOURCE_REMOVE;
+
+  self = finish->self;
+  path = finish->path;
+
+  if (finish->window != NULL)
+    {
+      data = g_object_get_data (G_OBJECT (finish->window), "create-data");
+      if (data != NULL)
+        {
+          if (data->tmpl_list != NULL)
+            g_signal_handlers_disconnect_by_data (data->tmpl_list, data);
+          if (data->search_entry != NULL)
+            g_signal_handlers_disconnect_by_data (data->search_entry, data);
+        }
+      gtk_window_destroy (finish->window);
+    }
+  g_free (finish);
+
+  if (self != NULL && path != NULL)
+    emit_action (self, "open-project", path);
+  free (path);
+  return G_SOURCE_REMOVE;
+}
+
 static void
 on_create_clicked (GtkButton *btn, gpointer user_data)
 {
@@ -284,8 +328,7 @@ on_create_clicked (GtkButton *btn, gpointer user_data)
   const char *tmpl = "gtk4-adwaita";
   char *out_path = NULL;
   char *out_error = NULL;
-  GabHomescreen *self;
-  GtkWindow *window;
+  FinishCreateData *finish;
 
   if (data == NULL)
     return;
@@ -317,13 +360,14 @@ on_create_clicked (GtkButton *btn, gpointer user_data)
       return;
     }
 
-  self = data->self;
-  window = data->window;
-  g_object_steal_data (G_OBJECT (window), "create-data");
-  free_create_data (data);
-  gtk_window_destroy (window);
-  emit_action (self, "open-project", out_path);
-  free (out_path);
+  /* Destroy the modal and open the project after this click handler returns.
+   * Destroying the window mid-signal crashes GTK (seen as GPF in libgtk). */
+  finish = g_new0 (FinishCreateData, 1);
+  finish->self = data->self;
+  finish->window = data->window;
+  finish->path = out_path;
+  gtk_widget_set_sensitive (GTK_WIDGET (data->window), FALSE);
+  g_idle_add (finish_create_idle, finish);
 }
 
 static void
@@ -528,6 +572,7 @@ on_new_project (GtkButton *btn, GabHomescreen *self)
   g_signal_connect (browse, "clicked", G_CALLBACK (on_browse_folder), data);
   g_signal_connect (cancel_btn, "clicked", G_CALLBACK (on_cancel_clicked), data);
   g_signal_connect (create_btn, "clicked", G_CALLBACK (on_create_clicked), data);
+  gtk_window_set_default_widget (window, create_btn);
 
   gtk_window_present (window);
   gtk_widget_grab_focus (GTK_WIDGET (name_row));
