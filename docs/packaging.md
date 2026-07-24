@@ -5,7 +5,7 @@ Build Linux packages for Luma Builder:
 ```bash
 ./scripts/build-packages.sh
 # or
-VERSION=0.2.0 ./scripts/build-packages.sh
+VERSION=0.3.0 ./scripts/build-packages.sh
 ```
 
 ## Artifacts (`dist/`)

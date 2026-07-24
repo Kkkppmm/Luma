@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${VERSION:-0.2.0}"
+VERSION="${VERSION:-0.3.0}"
 ARCH="$(dpkg --print-architecture 2>/dev/null || uname -m)"
 case "$ARCH" in
   x86_64) ARCH=amd64 ;;
@@ -50,7 +50,7 @@ Maintainer: Luma Builder Contributors <noreply@users.noreply.github.com>
 Homepage: https://github.com/Kkkppmm/Luma
 Description: Luma Builder — lightweight GNOME/GTK4 IDE
  Luma Builder is a lightweight IDE for creating GTK4 and libadwaita
- applications in C and C++. It includes project scaffolding, an editor
+ applications in C and C++. It includes 30+ project templates, an editor
  with Build/Run (meson), format tools, Help/Docs/SDK windows, and a
  GitHub updater that can install new packages on the user's PC.
 EOF
