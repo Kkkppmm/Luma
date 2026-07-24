@@ -44,6 +44,11 @@ See [docs/screenshots/](docs/screenshots/) for images of every window and the ed
 ![Editor context menu](docs/screenshots/11-editor-context-menu.png)
 ![All windows](docs/screenshots/13-all-windows.png)
 
+## Website
+
+Marketing site (Cloudflare Pages): [`website/`](website/) — product info, screenshots, and package downloads.
+Deploy with **Build output directory** = `website`, then attach your Cloudflare custom domain. See [`website/README.md`](website/README.md).
+
 ## Packages / releases
 
 See [docs/packaging.md](docs/packaging.md). Build with:
