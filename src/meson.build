@@ -24,7 +24,7 @@ sources = files(
 )
 
 gnome_app_builder = executable(
-  'gnome-app-builder',
+  'luma-builder',
   sources,
   dependencies: [gtk_dep, adw_dep, gsv_dep, json_dep, soup_dep],
   include_directories: config_inc,

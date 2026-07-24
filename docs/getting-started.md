@@ -1,33 +1,23 @@
-# Getting Started with GNOME App Builder
+# Getting Started with Luma Builder
 
-Welcome to **GNOME App Builder** — a lightweight IDE for creating GTK4 and
-libadwaita applications in C and C++.
+Welcome to **Luma Builder** — a lightweight IDE for GTK4 and libadwaita apps in C and C++.
 
-## Homescreen
+## Home
 
-When you launch the app you land on the homescreen:
+- **New Project** — create a GTK4 / libadwaita template
+- **Recent Projects** — reopen past work
+- **☰ menu** — SDK Manager, Help, Docs, About
+- **SDK Manager** card — download GNOME Platform / Sdk runtimes
 
-- **New Project** — create a GTK4 / libadwaita template project
-- **Recent Projects** — reopen projects you worked on before
-- **SDK Manager** — download GNOME Platform and SDK runtimes
-- **Help** — quick tips and keyboard shortcuts
-- **Docs** — built-in documentation
+## Editor
 
-## Creating a project
+- File tree on the left — click a file to open it
+- **Right-click** the code for Format, Indent, Trim, Sort Lines, Comment, and Save
+- The same tools are in the header Tools (☰) menu
 
-1. Click **New Project** on the homescreen.
-2. Enter a project name and choose a parent folder.
-3. Pick a template (GTK4 Application or GTK4 + libadwaita).
-4. Click **Create**. The editor opens with your new project tree.
+## Shortcuts
 
-## Opening an existing project
-
-Use **Open Project…** or click a card under **Recent Projects**.
-The project root should contain a `meson.build` or `CMakeLists.txt`
-(or any folder of source files).
-
-## Next steps
-
-- Browse the file tree on the left of the editor.
-- Use the toolbar Format actions to tidy code.
-- Install SDKs from the SDK Manager before packaging with Flatpak.
+- `Ctrl+S` — Save
+- `Ctrl+Shift+F` — Format document
+- `F1` — Help
+- `Ctrl+Q` — Quit

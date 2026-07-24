@@ -1,20 +1,15 @@
-# GNOME App Builder
+# Luma Builder
 
 Lightweight GTK4 / libadwaita IDE for creating GNOME applications in **C** and **C++**.
 
 ## Features
 
-- Homescreen with **New Project**, **Recent Projects**, **Help**, and **Docs**
-- **SDK Manager** to download GNOME Platform / Sdk Flatpak runtimes
-- Editor with a **file tree**, syntax highlighting (GtkSourceView), and
-  **format tools** (indent, trim, sort lines, toggle comments, format document)
+- Homescreen with **New Project**, **Recent Projects**, and menu access to Help / Docs / SDK / About
+- **SDK Manager** window to download GNOME Platform / Sdk Flatpak runtimes
+- Editor with a **file tree** and **right-click tools** (Format, Indent, Trim, Sort Lines, Comment)
+- Help, Docs, SDK, and About each open in **their own window**
 
 ## Dependencies
-
-- Meson ≥ 1.0, Ninja, GCC/G++
-- GTK 4, libadwaita 1, GtkSourceView 5
-- json-glib, libsoup-3.0
-- Optional: Flatpak (for SDK downloads)
 
 On Ubuntu 24.04:
 
@@ -27,27 +22,16 @@ sudo apt install meson ninja-build build-essential pkg-config \
 ## Build & run
 
 ```bash
-meson setup build
+CC=gcc CXX=g++ meson setup build
 meson compile -C build
-./build/src/gnome-app-builder
+GSETTINGS_SCHEMA_DIR=build/data ./build/src/luma-builder
 ```
 
-For a local install (schemas + icons):
+## Tips
 
-```bash
-meson setup build --prefix=$HOME/.local
-meson compile -C build
-meson install -C build
-gnome-app-builder
-```
-
-## Project layout
-
-| Path | Role |
-|------|------|
-| `src/` | Application sources (C UI + C++ project/SDK/formatter engines) |
-| `data/` | Desktop file, AppStream, GSettings schema, icon |
-| `docs/` | Built-in documentation shown in the Docs view |
+- **Right-click** in the editor for format tools (also available from the header ☰ menu).
+- Projects default to `~/LumaProjects`.
+- Press `F1` for Help, `Ctrl+S` to save, `Ctrl+Shift+F` to format the document.
 
 ## License
 

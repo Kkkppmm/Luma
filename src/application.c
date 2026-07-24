@@ -19,10 +19,8 @@ app_open_help (GSimpleAction *action, GVariant *param, gpointer user_data)
 {
   (void) action;
   (void) param;
-  GtkApplication *app = GTK_APPLICATION (user_data);
-  gab_secondary_window_present (app, "Help — GNOME App Builder",
-                                "Guides and troubleshooting",
-                                gab_help_view_new (), 960, 680);
+  gab_secondary_window_present (GTK_APPLICATION (user_data), "Help",
+                                "Luma Builder", gab_help_view_new (), 920, 640);
 }
 
 static void
@@ -30,10 +28,8 @@ app_open_docs (GSimpleAction *action, GVariant *param, gpointer user_data)
 {
   (void) action;
   (void) param;
-  GtkApplication *app = GTK_APPLICATION (user_data);
-  gab_secondary_window_present (app, "Docs — GNOME App Builder",
-                                "Built-in documentation",
-                                gab_docs_view_new (), 1000, 720);
+  gab_secondary_window_present (GTK_APPLICATION (user_data), "Docs",
+                                "Luma Builder", gab_docs_view_new (), 960, 700);
 }
 
 static void
@@ -41,12 +37,10 @@ app_open_sdk (GSimpleAction *action, GVariant *param, gpointer user_data)
 {
   (void) action;
   (void) param;
-  GtkApplication *app = GTK_APPLICATION (user_data);
   GtkWidget *view = gab_sdk_view_new ();
   gab_sdk_view_refresh (GAB_SDK_VIEW (view));
-  gab_secondary_window_present (app, "SDK Manager — GNOME App Builder",
-                                "Platform, Sdk & API runtimes",
-                                view, 920, 700);
+  gab_secondary_window_present (GTK_APPLICATION (user_data), "SDK Manager",
+                                "Luma Builder", view, 880, 660);
 }
 
 static void
@@ -54,9 +48,8 @@ app_open_about (GSimpleAction *action, GVariant *param, gpointer user_data)
 {
   (void) action;
   (void) param;
-  GtkApplication *app = GTK_APPLICATION (user_data);
-  gab_secondary_window_present (app, "About — GNOME App Builder", NULL,
-                                gab_about_view_new (), 520, 480);
+  gab_secondary_window_present (GTK_APPLICATION (user_data), "About",
+                                "Luma Builder", gab_about_view_new (), 480, 440);
 }
 
 static void
@@ -71,8 +64,7 @@ static void
 gab_application_activate (GApplication *app)
 {
   GtkWindow *window = NULL;
-  GList *windows = gtk_application_get_windows (GTK_APPLICATION (app));
-  for (GList *l = windows; l != NULL; l = l->next)
+  for (GList *l = gtk_application_get_windows (GTK_APPLICATION (app)); l; l = l->next)
     {
       if (GAB_IS_WINDOW (l->data))
         {
@@ -91,21 +83,19 @@ gab_application_startup (GApplication *app)
   G_APPLICATION_CLASS (gab_application_parent_class)->startup (app);
 
   const GActionEntry entries[] = {
-    { "help", app_open_help, NULL, NULL, NULL },
-    { "docs", app_open_docs, NULL, NULL, NULL },
-    { "sdk", app_open_sdk, NULL, NULL, NULL },
-    { "about", app_open_about, NULL, NULL, NULL },
-    { "quit", app_quit, NULL, NULL, NULL },
+      { .name = "help", .activate = app_open_help },
+      { .name = "docs", .activate = app_open_docs },
+      { .name = "sdk", .activate = app_open_sdk },
+      { .name = "about", .activate = app_open_about },
+      { .name = "quit", .activate = app_quit },
   };
   g_action_map_add_action_entries (G_ACTION_MAP (app), entries,
                                    G_N_ELEMENTS (entries), app);
 
-  const char * const quit_accels[] = { "<primary>q", NULL };
-  const char * const help_accels[] = { "F1", NULL };
   gtk_application_set_accels_for_action (GTK_APPLICATION (app), "app.quit",
-                                         quit_accels);
+                                         (const char *[]){ "<primary>q", NULL });
   gtk_application_set_accels_for_action (GTK_APPLICATION (app), "app.help",
-                                         help_accels);
+                                         (const char *[]){ "F1", NULL });
 }
 
 static void

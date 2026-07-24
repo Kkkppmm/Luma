@@ -4,37 +4,33 @@
 
 ### Product
 
-**GNOME App Builder** (`gnome-app-builder`) is a GTK4 / libadwaita desktop IDE written in **C + C++** (Meson). It scaffolds GNOME apps, edits sources with a file tree + format tools, and opens Help / Docs / SDK Manager / About as **separate windows**.
+**Luma Builder** (`luma-builder`, app id `io.github.kkkppmm.LumaBuilder`) is a GTK4 / libadwaita desktop IDE in **C + C++** (Meson). Homescreen + editor live in the main window; Help / Docs / SDK Manager / About open as separate windows. Editor format tools are on the **right-click** context menu (and the header Tools menu).
 
 ### Build & run (dev)
 
-Standard commands are in `README.md`. Important Cloud/agent caveats:
+See `README.md`. Cloud caveats:
 
-- Prefer **`CC=gcc CXX=g++`** for Meson. The default `c++` may be Clang without a usable `libstdc++` link in this environment.
-- Uninstalled runs need schemas:
+- Prefer **`CC=gcc CXX=g++`** (default `c++`/Clang may fail to link `libstdc++` here).
+- Uninstalled:
 
 ```bash
 CC=gcc CXX=g++ meson setup build --prefix=$HOME/.local
 meson compile -C build
-GSETTINGS_SCHEMA_DIR=build/data GDK_BACKEND=x11 ./build/src/gnome-app-builder
+GSETTINGS_SCHEMA_DIR=build/data GDK_BACKEND=x11 ./build/src/luma-builder
 ```
 
-- Run from the **repo root** so `docs/*.md` resolve in the Docs window.
-- Only one app instance runs (`GApplication`). A second launch activates the existing one and exits.
-- Formatter unit check (no GUI): `bash scripts/test_formatter.sh`
+- Run from the **repo root** so `docs/*.md` resolve.
+- One GApplication instance only.
+- Formatter check: `bash scripts/test_formatter.sh`
 
-### Services / windows
+### Windows
 
-| Piece | How to open | Notes |
-|-------|-------------|--------|
-| Main homescreen + editor | App launch / New·Open project | Editor is an in-window nav page |
-| Help | Homescreen **Help**, `F1`, or `app.help` | Own window + topic sidebar |
-| Docs | Homescreen **Docs** or `app.docs` | Own window + doc sidebar |
-| SDK Manager | Homescreen card or `app.sdk` | Own window; needs `flatpak` + network to install |
-| About | Homescreen **About** or `app.about` | Own window |
+| Window | Open via |
+|--------|----------|
+| Home + Editor | App launch / New·Open project |
+| Help | Menu, `F1`, or `app.help` |
+| Docs | Menu or `app.docs` |
+| SDK Manager | Home card, menu, or `app.sdk` |
+| About | Menu or `app.about` |
 
-Optional: Flatpak/Flathub for SDK installs. Not required to edit or scaffold projects.
-
-### Lint / test
-
-No ESLint. C/C++ warnings come from the compiler during `meson compile`. Use `scripts/test_formatter.sh` for the C++ formatter engine.
+Flatpak is optional (only for SDK installs).

@@ -1,5 +1,5 @@
 project(
-  'gnome-app-builder',
+  'luma-builder',
   ['c', 'cpp'],
   version: '0.1.0',
   meson_version: '>= 1.0.0',
@@ -21,8 +21,8 @@ dependency('libsoup-3.0', version: '>= 3.0')
 dependency('gio-2.0')
 
 conf = configuration_data()
-conf.set_quoted('APP_ID', 'org.gnome.AppBuilder')
-conf.set_quoted('APP_NAME', 'GNOME App Builder')
+conf.set_quoted('APP_ID', 'io.github.kkkppmm.LumaBuilder')
+conf.set_quoted('APP_NAME', 'Luma Builder')
 conf.set_quoted('PACKAGE_VERSION', meson.project_version())
 conf.set_quoted('GETTEXT_PACKAGE', meson.project_name())
 conf.set_quoted('LOCALEDIR', join_paths(get_option('prefix'), get_option('localedir')))

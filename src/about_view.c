@@ -24,14 +24,14 @@ gab_about_view_init (GabAboutView *self)
   gtk_widget_set_halign (GTK_WIDGET (self), GTK_ALIGN_CENTER);
   gtk_widget_set_margin_start (GTK_WIDGET (self), 32);
   gtk_widget_set_margin_end (GTK_WIDGET (self), 32);
-  gtk_widget_set_margin_top (GTK_WIDGET (self), 24);
-  gtk_widget_set_margin_bottom (GTK_WIDGET (self), 24);
+  gtk_widget_set_margin_top (GTK_WIDGET (self), 28);
+  gtk_widget_set_margin_bottom (GTK_WIDGET (self), 28);
 
   const char *icon_name = "applications-engineering-symbolic";
   GtkIconTheme *theme =
       gtk_icon_theme_get_for_display (gdk_display_get_default ());
-  if (gtk_icon_theme_has_icon (theme, "org.gnome.AppBuilder"))
-    icon_name = "org.gnome.AppBuilder";
+  if (gtk_icon_theme_has_icon (theme, APP_ID))
+    icon_name = APP_ID;
 
   GtkWidget *icon = gtk_image_new_from_icon_name (icon_name);
   gtk_image_set_pixel_size (GTK_IMAGE (icon), 96);
@@ -48,15 +48,15 @@ gab_about_view_init (GabAboutView *self)
   gtk_box_append (GTK_BOX (self), version);
 
   GtkWidget *desc = gtk_label_new (
-      "A lightweight IDE for creating GTK4 / libadwaita applications in C and C++.\n"
-      "Includes project scaffolding, an editor with formatting tools,\n"
-      "SDK downloads, and dedicated Help & Docs windows.");
+      "A smooth lightweight IDE for GTK4 / libadwaita apps in C and C++.\n"
+      "Right-click in the editor for format tools. Help, Docs, and SDK\n"
+      "Manager open in their own windows.");
   gtk_label_set_justify (GTK_LABEL (desc), GTK_JUSTIFY_CENTER);
   gtk_label_set_wrap (GTK_LABEL (desc), TRUE);
   gtk_widget_set_margin_top (desc, 16);
   gtk_box_append (GTK_BOX (self), desc);
 
-  GtkWidget *tech = gtk_label_new ("Built with GTK 4 · libadwaita · GtkSourceView · Meson");
+  GtkWidget *tech = gtk_label_new ("GTK 4 · libadwaita · GtkSourceView · Meson");
   gtk_widget_add_css_class (tech, "dim-label");
   gtk_widget_set_margin_top (tech, 18);
   gtk_box_append (GTK_BOX (self), tech);

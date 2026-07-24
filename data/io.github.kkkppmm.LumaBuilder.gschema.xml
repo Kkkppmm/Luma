@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
-  <schema id="org.gnome.AppBuilder" path="/org/gnome/AppBuilder/">
+  <schema id="io.github.kkkppmm.LumaBuilder" path="/io/github/kkkppmm/LumaBuilder/">
     <key name="window-width" type="i">
       <default>1280</default>
       <summary>Window width</summary>

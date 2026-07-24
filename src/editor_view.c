@@ -21,6 +21,7 @@ struct _GabEditorView
   GtkSourceBuffer *buffer;
   GtkLabel *status;
   GSettings *settings;
+  GSimpleActionGroup *actions;
 };
 
 G_DEFINE_TYPE (GabEditorView, gab_editor_view, GTK_TYPE_BOX)
@@ -86,8 +87,6 @@ apply_language (GabEditorView *self, const char *path)
   const char *id = "c";
   if (g_strcmp0 (lang_id, "cpp") == 0)
     id = "cpp";
-  else if (g_strcmp0 (lang_id, "c") == 0)
-    id = "c";
   else if (g_strcmp0 (lang_id, "python") == 0)
     id = "python";
   else if (g_strcmp0 (lang_id, "xml") == 0)
@@ -123,7 +122,8 @@ save_current_file (GabEditorView *self)
     }
 
   self->dirty = FALSE;
-  g_autofree char *msg = g_strdup_printf ("Saved %s", self->current_file);
+  g_autofree char *base = g_path_get_basename (self->current_file);
+  g_autofree char *msg = g_strdup_printf ("Saved %s", base);
   set_status (self, msg);
   return TRUE;
 }
@@ -147,9 +147,10 @@ open_file (GabEditorView *self, const char *path)
   self->dirty = FALSE;
 
   g_autofree char *base = g_path_get_basename (path);
-  g_autofree char *subtitle = g_strdup_printf ("%s — %s", base, self->project_path);
-  adw_window_title_set_subtitle (ADW_WINDOW_TITLE (self->title_widget), subtitle);
-  set_status (self, path);
+  adw_window_title_set_title (ADW_WINDOW_TITLE (self->title_widget), base);
+  adw_window_title_set_subtitle (ADW_WINDOW_TITLE (self->title_widget),
+                                 self->project_path);
+  set_status (self, "Right-click the editor for format tools");
 }
 
 static void
@@ -191,10 +192,10 @@ rebuild_file_tree (GabEditorView *self)
 
       GtkWidget *row = gtk_list_box_row_new ();
       GtkWidget *box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 8);
-      gtk_widget_set_margin_start (box, 8);
-      gtk_widget_set_margin_end (box, 8);
-      gtk_widget_set_margin_top (box, 4);
-      gtk_widget_set_margin_bottom (box, 4);
+      gtk_widget_set_margin_start (box, 10);
+      gtk_widget_set_margin_end (box, 10);
+      gtk_widget_set_margin_top (box, 6);
+      gtk_widget_set_margin_bottom (box, 6);
       GtkWidget *icon = gtk_image_new_from_icon_name ("text-x-generic-symbolic");
       GtkWidget *label = gtk_label_new (rel);
       gtk_label_set_xalign (GTK_LABEL (label), 0.0);
@@ -216,17 +217,22 @@ on_changed (GtkTextBuffer *buffer, GabEditorView *self)
   self->dirty = TRUE;
 }
 
+/* ---- Tool actions (used by right-click menu + shortcuts) ---- */
+
 static void
-on_save (GtkButton *btn, GabEditorView *self)
+act_save (GSimpleAction *a, GVariant *p, gpointer user_data)
 {
-  (void) btn;
-  save_current_file (self);
+  (void) a;
+  (void) p;
+  save_current_file (GAB_EDITOR_VIEW (user_data));
 }
 
 static void
-on_format_document (GtkButton *btn, GabEditorView *self)
+act_format_document (GSimpleAction *a, GVariant *p, gpointer user_data)
 {
-  (void) btn;
+  (void) a;
+  (void) p;
+  GabEditorView *self = GAB_EDITOR_VIEW (user_data);
   GabFormatOptionsC opts = current_format_opts (self);
   g_autofree char *text = buffer_get_text (GTK_TEXT_BUFFER (self->buffer));
   char *formatted = gab_format_document (text, &opts);
@@ -236,9 +242,11 @@ on_format_document (GtkButton *btn, GabEditorView *self)
 }
 
 static void
-on_format_selection (GtkButton *btn, GabEditorView *self)
+act_format_lines (GSimpleAction *a, GVariant *p, gpointer user_data)
 {
-  (void) btn;
+  (void) a;
+  (void) p;
+  GabEditorView *self = GAB_EDITOR_VIEW (user_data);
   int start_line = 0, end_line = 0;
   get_selection_lines (GTK_TEXT_BUFFER (self->buffer), &start_line, &end_line);
   GabFormatOptionsC opts = current_format_opts (self);
@@ -250,9 +258,11 @@ on_format_selection (GtkButton *btn, GabEditorView *self)
 }
 
 static void
-on_indent (GtkButton *btn, GabEditorView *self)
+act_indent (GSimpleAction *a, GVariant *p, gpointer user_data)
 {
-  (void) btn;
+  (void) a;
+  (void) p;
+  GabEditorView *self = GAB_EDITOR_VIEW (user_data);
   int start_line = 0, end_line = 0;
   get_selection_lines (GTK_TEXT_BUFFER (self->buffer), &start_line, &end_line);
   GabFormatOptionsC opts = current_format_opts (self);
@@ -264,9 +274,11 @@ on_indent (GtkButton *btn, GabEditorView *self)
 }
 
 static void
-on_unindent (GtkButton *btn, GabEditorView *self)
+act_unindent (GSimpleAction *a, GVariant *p, gpointer user_data)
 {
-  (void) btn;
+  (void) a;
+  (void) p;
+  GabEditorView *self = GAB_EDITOR_VIEW (user_data);
   int start_line = 0, end_line = 0;
   get_selection_lines (GTK_TEXT_BUFFER (self->buffer), &start_line, &end_line);
   GabFormatOptionsC opts = current_format_opts (self);
@@ -278,9 +290,11 @@ on_unindent (GtkButton *btn, GabEditorView *self)
 }
 
 static void
-on_trim (GtkButton *btn, GabEditorView *self)
+act_trim (GSimpleAction *a, GVariant *p, gpointer user_data)
 {
-  (void) btn;
+  (void) a;
+  (void) p;
+  GabEditorView *self = GAB_EDITOR_VIEW (user_data);
   g_autofree char *text = buffer_get_text (GTK_TEXT_BUFFER (self->buffer));
   char *formatted = gab_trim_trailing (text);
   buffer_set_text_preserve (GTK_TEXT_BUFFER (self->buffer), formatted);
@@ -289,9 +303,11 @@ on_trim (GtkButton *btn, GabEditorView *self)
 }
 
 static void
-on_sort_lines (GtkButton *btn, GabEditorView *self)
+act_sort_lines (GSimpleAction *a, GVariant *p, gpointer user_data)
 {
-  (void) btn;
+  (void) a;
+  (void) p;
+  GabEditorView *self = GAB_EDITOR_VIEW (user_data);
   int start_line = 0, end_line = 0;
   get_selection_lines (GTK_TEXT_BUFFER (self->buffer), &start_line, &end_line);
   g_autofree char *text = buffer_get_text (GTK_TEXT_BUFFER (self->buffer));
@@ -302,9 +318,11 @@ on_sort_lines (GtkButton *btn, GabEditorView *self)
 }
 
 static void
-on_toggle_comment (GtkButton *btn, GabEditorView *self)
+act_toggle_comment (GSimpleAction *a, GVariant *p, gpointer user_data)
 {
-  (void) btn;
+  (void) a;
+  (void) p;
+  GabEditorView *self = GAB_EDITOR_VIEW (user_data);
   int start_line = 0, end_line = 0;
   get_selection_lines (GTK_TEXT_BUFFER (self->buffer), &start_line, &end_line);
   g_autofree char *text = buffer_get_text (GTK_TEXT_BUFFER (self->buffer));
@@ -323,6 +341,13 @@ on_go_home (GtkButton *btn, GabEditorView *self)
     g_action_group_activate_action (G_ACTION_GROUP (root), "go-home", NULL);
 }
 
+static void
+on_save_clicked (GtkButton *btn, GabEditorView *self)
+{
+  (void) btn;
+  save_current_file (self);
+}
+
 static gboolean
 on_save_shortcut (GtkWidget *widget, GVariant *args, gpointer user_data)
 {
@@ -337,17 +362,54 @@ on_format_shortcut (GtkWidget *widget, GVariant *args, gpointer user_data)
 {
   (void) widget;
   (void) args;
-  on_format_document (NULL, GAB_EDITOR_VIEW (user_data));
+  act_format_document (NULL, NULL, user_data);
   return TRUE;
 }
 
-static GtkWidget *
-tool_button (const char *label, GCallback cb, gpointer data)
+static GMenuModel *
+build_tools_menu (void)
 {
-  GtkWidget *btn = gtk_button_new_with_label (label);
-  gtk_widget_add_css_class (btn, "flat");
-  g_signal_connect (btn, "clicked", cb, data);
-  return btn;
+  GMenu *root = g_menu_new ();
+  GMenu *format = g_menu_new ();
+  GMenu *edit = g_menu_new ();
+
+  g_menu_append (format, "Format Document", "editor.format-document");
+  g_menu_append (format, "Format Selected Lines", "editor.format-lines");
+  g_menu_append (format, "Indent Lines", "editor.indent");
+  g_menu_append (format, "Unindent Lines", "editor.unindent");
+  g_menu_append_section (root, "Format", G_MENU_MODEL (format));
+
+  g_menu_append (edit, "Trim Trailing Space", "editor.trim");
+  g_menu_append (edit, "Sort Selected Lines", "editor.sort-lines");
+  g_menu_append (edit, "Toggle Comment", "editor.toggle-comment");
+  g_menu_append_section (root, "Edit", G_MENU_MODEL (edit));
+
+  g_menu_append (root, "Save", "editor.save");
+
+  g_object_unref (format);
+  g_object_unref (edit);
+  return G_MENU_MODEL (root);
+}
+
+static void
+install_editor_actions (GabEditorView *self)
+{
+  const GActionEntry entries[] = {
+      { .name = "save", .activate = act_save },
+      { .name = "format-document", .activate = act_format_document },
+      { .name = "format-lines", .activate = act_format_lines },
+      { .name = "indent", .activate = act_indent },
+      { .name = "unindent", .activate = act_unindent },
+      { .name = "trim", .activate = act_trim },
+      { .name = "sort-lines", .activate = act_sort_lines },
+      { .name = "toggle-comment", .activate = act_toggle_comment },
+  };
+
+  self->actions = g_simple_action_group_new ();
+  g_action_map_add_action_entries (G_ACTION_MAP (self->actions), entries,
+                                   G_N_ELEMENTS (entries), self);
+  gtk_widget_insert_action_group (GTK_WIDGET (self), "editor",
+                                  G_ACTION_GROUP (self->actions));
 }
 
 void
@@ -374,7 +436,7 @@ gab_editor_view_open_project (GabEditorView *self, const char *path)
     {
       gtk_text_buffer_set_text (GTK_TEXT_BUFFER (self->buffer),
                                 "/* Select a file from the tree */\n", -1);
-      set_status (self, "Project opened");
+      set_status (self, "Project opened — right-click for tools");
     }
 }
 
@@ -392,6 +454,7 @@ gab_editor_view_dispose (GObject *object)
   g_clear_pointer (&self->project_path, g_free);
   g_clear_pointer (&self->current_file, g_free);
   g_clear_object (&self->settings);
+  g_clear_object (&self->actions);
   G_OBJECT_CLASS (gab_editor_view_parent_class)->dispose (object);
 }
 
@@ -406,43 +469,31 @@ gab_editor_view_init (GabEditorView *self)
 {
   self->settings = g_settings_new (APP_ID);
   gtk_orientable_set_orientation (GTK_ORIENTABLE (self), GTK_ORIENTATION_VERTICAL);
+  install_editor_actions (self);
 
   AdwHeaderBar *header = ADW_HEADER_BAR (adw_header_bar_new ());
   self->title_widget = adw_window_title_new ("Editor", NULL);
   adw_header_bar_set_title_widget (header, self->title_widget);
 
   GtkWidget *home_btn = gtk_button_new_from_icon_name ("go-home-symbolic");
-  gtk_widget_set_tooltip_text (home_btn, "Back to homescreen");
+  gtk_widget_set_tooltip_text (home_btn, "Back to home");
+  gtk_widget_add_css_class (home_btn, "flat");
   g_signal_connect (home_btn, "clicked", G_CALLBACK (on_go_home), self);
   adw_header_bar_pack_start (header, home_btn);
 
+  /* Compact Tools menu (same actions as right-click) */
+  GtkWidget *tools_btn = gtk_menu_button_new ();
+  gtk_menu_button_set_icon_name (GTK_MENU_BUTTON (tools_btn), "open-menu-symbolic");
+  gtk_widget_set_tooltip_text (tools_btn, "Tools (also available via right-click)");
+  gtk_menu_button_set_menu_model (GTK_MENU_BUTTON (tools_btn), build_tools_menu ());
+  adw_header_bar_pack_end (header, tools_btn);
+
   GtkWidget *save_btn = gtk_button_new_from_icon_name ("document-save-symbolic");
   gtk_widget_set_tooltip_text (save_btn, "Save (Ctrl+S)");
-  g_signal_connect (save_btn, "clicked", G_CALLBACK (on_save), self);
+  gtk_widget_add_css_class (save_btn, "flat");
+  g_signal_connect (save_btn, "clicked", G_CALLBACK (on_save_clicked), self);
   adw_header_bar_pack_end (header, save_btn);
   gtk_box_append (GTK_BOX (self), GTK_WIDGET (header));
-
-  GtkWidget *tools = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
-  gtk_widget_add_css_class (tools, "toolbar");
-  gtk_widget_set_margin_start (tools, 6);
-  gtk_widget_set_margin_end (tools, 6);
-  gtk_widget_set_margin_top (tools, 4);
-  gtk_widget_set_margin_bottom (tools, 4);
-  gtk_box_append (GTK_BOX (tools),
-                  tool_button ("Format", G_CALLBACK (on_format_document), self));
-  gtk_box_append (GTK_BOX (tools),
-                  tool_button ("Format Lines", G_CALLBACK (on_format_selection), self));
-  gtk_box_append (GTK_BOX (tools),
-                  tool_button ("Indent", G_CALLBACK (on_indent), self));
-  gtk_box_append (GTK_BOX (tools),
-                  tool_button ("Unindent", G_CALLBACK (on_unindent), self));
-  gtk_box_append (GTK_BOX (tools),
-                  tool_button ("Trim", G_CALLBACK (on_trim), self));
-  gtk_box_append (GTK_BOX (tools),
-                  tool_button ("Sort Lines", G_CALLBACK (on_sort_lines), self));
-  gtk_box_append (GTK_BOX (tools),
-                  tool_button ("Comment", G_CALLBACK (on_toggle_comment), self));
-  gtk_box_append (GTK_BOX (self), tools);
 
   GtkWidget *paned = gtk_paned_new (GTK_ORIENTATION_HORIZONTAL);
   gtk_widget_set_vexpand (paned, TRUE);
@@ -452,11 +503,12 @@ gab_editor_view_init (GabEditorView *self)
   gtk_box_append (GTK_BOX (self), paned);
 
   GtkWidget *sidebar = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-  gtk_widget_set_size_request (sidebar, 260, -1);
+  gtk_widget_set_size_request (sidebar, 240, -1);
+  gtk_widget_add_css_class (sidebar, "sidebar");
   GtkWidget *side_label = gtk_label_new ("Files");
   gtk_widget_add_css_class (side_label, "heading");
-  gtk_widget_set_margin_start (side_label, 12);
-  gtk_widget_set_margin_top (side_label, 10);
+  gtk_widget_set_margin_start (side_label, 14);
+  gtk_widget_set_margin_top (side_label, 12);
   gtk_widget_set_margin_bottom (side_label, 6);
   gtk_label_set_xalign (GTK_LABEL (side_label), 0.0);
   gtk_box_append (GTK_BOX (sidebar), side_label);
@@ -464,6 +516,7 @@ gab_editor_view_init (GabEditorView *self)
   GtkWidget *side_scroll = gtk_scrolled_window_new ();
   gtk_widget_set_vexpand (side_scroll, TRUE);
   self->file_list = GTK_LIST_BOX (gtk_list_box_new ());
+  gtk_widget_add_css_class (GTK_WIDGET (self->file_list), "navigation-sidebar");
   gtk_list_box_set_selection_mode (self->file_list, GTK_SELECTION_SINGLE);
   g_signal_connect (self->file_list, "row-activated",
                     G_CALLBACK (on_file_row_activated), self);
@@ -484,8 +537,10 @@ gab_editor_view_init (GabEditorView *self)
       self->source_view, g_settings_get_boolean (self->settings, "insert-spaces"));
   gtk_source_view_set_highlight_current_line (self->source_view, TRUE);
 
+  /* Right-click context menu with format tools */
+  gtk_text_view_set_extra_menu (GTK_TEXT_VIEW (self->source_view), build_tools_menu ());
+
   g_autofree char *font = g_settings_get_string (self->settings, "editor-font");
-  /* GSettings stores Pango font strings like "Monospace 12" */
   g_autoptr (PangoFontDescription) desc = pango_font_description_from_string (font);
   const char *family = pango_font_description_get_family (desc);
   int size_pt = pango_font_description_get_size (desc) / PANGO_SCALE;
@@ -507,15 +562,15 @@ gab_editor_view_init (GabEditorView *self)
   gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (scroll),
                                  GTK_WIDGET (self->source_view));
   gtk_paned_set_end_child (GTK_PANED (paned), scroll);
-  gtk_paned_set_position (GTK_PANED (paned), 280);
+  gtk_paned_set_position (GTK_PANED (paned), 260);
 
-  self->status = GTK_LABEL (gtk_label_new (""));
+  self->status = GTK_LABEL (gtk_label_new ("Right-click the editor for tools"));
   gtk_widget_add_css_class (GTK_WIDGET (self->status), "dim-label");
   gtk_label_set_xalign (self->status, 0.0);
-  gtk_widget_set_margin_start (GTK_WIDGET (self->status), 10);
-  gtk_widget_set_margin_end (GTK_WIDGET (self->status), 10);
+  gtk_widget_set_margin_start (GTK_WIDGET (self->status), 12);
+  gtk_widget_set_margin_end (GTK_WIDGET (self->status), 12);
   gtk_widget_set_margin_top (GTK_WIDGET (self->status), 4);
-  gtk_widget_set_margin_bottom (GTK_WIDGET (self->status), 6);
+  gtk_widget_set_margin_bottom (GTK_WIDGET (self->status), 8);
   gtk_box_append (GTK_BOX (self), GTK_WIDGET (self->status));
 
   GtkEventController *keys = gtk_shortcut_controller_new ();

@@ -122,13 +122,13 @@ gab_help_view_init (GabHelpView *self)
 
   gtk_stack_add_named (self->stack,
                        make_page ("Overview",
-                                  "GNOME App Builder is a lightweight IDE for GTK4 and "
+                                  "Luma Builder is a lightweight IDE for GTK4 and "
                                   "libadwaita apps in C and C++.\n\n"
-                                  "From the homescreen you can create projects, reopen "
+                                  "From the home screen you can create projects, reopen "
                                   "recent work, download GNOME SDKs, and open Help or Docs "
                                   "in their own windows.\n\n"
-                                  "Each secondary screen (Help, Docs, SDK Manager) opens "
-                                  "as a separate window so you can keep them beside the editor."),
+                                  "In the editor, right-click for Format, Indent, Trim, "
+                                  "Sort Lines, and Comment tools — no toolbar required."),
                        "overview");
 
   gtk_stack_add_named (self->stack,
@@ -138,34 +138,35 @@ gab_help_view_init (GabHelpView *self)
                                   "• Recent Projects — one-click reopen\n"
                                   "• SDK Manager — install Platform / Sdk Flatpak runtimes\n"
                                   "• Help / Docs — open dedicated helper windows\n\n"
-                                  "Created projects land under ~/GnomeProjects by default."),
+                                  "Created projects land under ~/LumaProjects by default."),
                        "home");
 
   gtk_stack_add_named (self->stack,
                        make_page ("Editor",
-                                  "The editor window (inside the main app) shows:\n\n"
-                                  "• File tree on the left — click a file to open it\n"
-                                  "• GtkSourceView with syntax highlighting and line numbers\n"
-                                  "• Toolbar: Format, Format Lines, Indent, Unindent, Trim, "
-                                  "Sort Lines, Comment\n\n"
-                                  "Format tools are powered by a C++ engine that normalizes "
-                                  "indentation, trims trailing spaces, sorts selected lines, "
-                                  "and toggles // comments."),
+                                  "The editor shows a file tree on the left and the source on the right.\n\n"
+                                  "Right-click anywhere in the code for tools:\n"
+                                  "• Format Document / Format Selected Lines\n"
+                                  "• Indent / Unindent\n"
+                                  "• Trim Trailing Space\n"
+                                  "• Sort Selected Lines\n"
+                                  "• Toggle Comment\n"
+                                  "• Save\n\n"
+                                  "The same menu is also in the header Tools button."),
                        "editor");
 
   gtk_stack_add_named (self->stack,
                        make_page ("Keyboard Shortcuts",
                                   "Ctrl+S — Save current file\n"
                                   "Ctrl+Shift+F — Format whole document\n"
-                                  "Ctrl+Q — Quit application\n\n"
-                                  "Toolbar buttons also cover indent, unindent, trim, "
-                                  "sort lines, and comment toggling for the current "
-                                  "selection (or the current line)."),
+                                  "F1 — Help window\n"
+                                  "Ctrl+Q — Quit\n\n"
+                                  "Right-click (or the Tools menu) for indent, unindent, trim, "
+                                  "sort lines, and comment toggling."),
                        "shortcuts");
 
   gtk_stack_add_named (self->stack,
                        make_page ("SDK Manager",
-                                  "Open SDK Manager from the homescreen — it opens in its "
+                                  "Open SDK Manager from the home screen — it opens in its "
                                   "own window.\n\n"
                                   "Install org.gnome.Platform and org.gnome.Sdk for a chosen "
                                   "branch (46/47), plus optional extensions and API docs.\n\n"

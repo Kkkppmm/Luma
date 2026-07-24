@@ -1,7 +1,7 @@
 # SDK & API Guide
 
-GNOME App Builder can download Flatpak runtimes used to build and run
-GNOME applications in a reproducible sandbox.
+Luma Builder can download Flatpak runtimes used to build and run
+GNOME applications.
 
 ## What gets installed
 

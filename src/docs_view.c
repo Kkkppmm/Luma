@@ -158,7 +158,7 @@ gab_docs_view_init (GabDocsView *self)
 
   set_text (self->api_ref,
             "# API Reference (built-in overview)\n\n"
-            "GNOME App Builder itself uses:\n\n"
+            "Luma Builder itself uses:\n\n"
             "## GTK 4\n"
             "- Windows, buttons, lists, paned layouts, file dialogs\n"
             "- Docs: https://docs.gtk.org/gtk4/\n\n"
@@ -177,7 +177,7 @@ gab_docs_view_init (GabDocsView *self)
   set_text (self->faq,
             "# FAQ\n\n"
             "Q: Where are projects created?\n"
-            "A: ~/GnomeProjects/<name> by default (editable in the New Project dialog).\n\n"
+            "A: ~/LumaProjects/<name> by default (editable in the New Project dialog).\n\n"
             "Q: Can Help and Docs stay open while I edit?\n"
             "A: Yes. They open as separate windows so you can tile them beside the editor.\n\n"
             "Q: Do I need Flatpak to develop?\n"

@@ -295,7 +295,7 @@ gab_homescreen_refresh (GabHomescreen *self)
     }
 
   gtk_label_set_text (GTK_LABEL (self->status_label),
-                      "Ready · C/C++ · GTK4 · libadwaita");
+                      "Ready · Luma Builder · C/C++ · GTK4");
 }
 
 static void
@@ -312,8 +312,21 @@ gab_homescreen_init (GabHomescreen *self)
   gtk_orientable_set_orientation (GTK_ORIENTABLE (self), GTK_ORIENTATION_VERTICAL);
 
   AdwHeaderBar *header = ADW_HEADER_BAR (adw_header_bar_new ());
-  GtkWidget *title = adw_window_title_new (APP_NAME, "Homescreen");
+  GtkWidget *title = adw_window_title_new (APP_NAME, "Home");
   adw_header_bar_set_title_widget (header, title);
+
+  /* Primary menu for smooth access to secondary windows */
+  GMenu *menu = g_menu_new ();
+  g_menu_append (menu, "SDK Manager", "app.sdk");
+  g_menu_append (menu, "Help", "app.help");
+  g_menu_append (menu, "Docs", "app.docs");
+  g_menu_append (menu, "About Luma Builder", "app.about");
+  g_menu_append (menu, "Quit", "app.quit");
+  GtkWidget *menu_btn = gtk_menu_button_new ();
+  gtk_menu_button_set_icon_name (GTK_MENU_BUTTON (menu_btn), "open-menu-symbolic");
+  gtk_menu_button_set_menu_model (GTK_MENU_BUTTON (menu_btn), G_MENU_MODEL (menu));
+  g_object_unref (menu);
+  adw_header_bar_pack_end (header, menu_btn);
   gtk_box_append (GTK_BOX (self), GTK_WIDGET (header));
 
   GtkWidget *scroll = gtk_scrolled_window_new ();
@@ -331,11 +344,11 @@ gab_homescreen_init (GabHomescreen *self)
   gtk_widget_set_margin_end (content, 24);
   gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (scroll), content);
 
-  GtkWidget *hero = gtk_label_new ("Build GNOME apps");
+  GtkWidget *hero = gtk_label_new ("Build with Luma");
   gtk_widget_add_css_class (hero, "title-1");
   gtk_label_set_xalign (GTK_LABEL (hero), 0.0);
   GtkWidget *hero_sub =
-      gtk_label_new ("Create projects, manage SDKs, and edit C/C++ sources.");
+      gtk_label_new ("Create GNOME apps, manage SDKs, and edit C/C++ smoothly.");
   gtk_widget_add_css_class (hero_sub, "dim-label");
   gtk_label_set_xalign (GTK_LABEL (hero_sub), 0.0);
   gtk_box_append (GTK_BOX (content), hero);
