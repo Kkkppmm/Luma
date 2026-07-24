@@ -116,9 +116,10 @@ bool GabProjectManager::create_project(const GabProjectInfo &info, std::string &
     return false;
   }
 
-  if (!GabProjectTemplates::find(info.template_id) && !info.template_id.empty()) {
-    /* still allow generation to pick default via empty/unknown handling */
-  }
+  /* Ensure parent folder exists (e.g. ~/LumaProjects) */
+  const fs::path parent = fs::path(info.path).parent_path();
+  if (!parent.empty() && !ensure_dir(parent.string(), error))
+    return false;
 
   GabProjectInfo normalized = info;
   if (normalized.template_id.empty())

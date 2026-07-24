@@ -1,6 +1,6 @@
 # Project templates
 
-New Project offers **36 starters** grouped by category in the template dropdown.
+New Project offers **36 starters** in a searchable template list (grouped by category labels on each row).
 
 | Category | Examples |
 |----------|----------|

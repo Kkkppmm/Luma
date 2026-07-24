@@ -199,7 +199,11 @@ const GabTemplateMeta *GabProjectTemplates::find(const std::string &id) {
 
 bool GabProjectTemplates::generate(const GabProjectInfo &info, std::string &error) {
   const GabTemplateMeta *meta = find(info.template_id);
-  const std::string tid = meta ? meta->id : "gtk4-adwaita";
+  if (meta == nullptr) {
+    error = "Unknown template: " + info.template_id;
+    return false;
+  }
+  const std::string tid = meta->id;
   FileMap files;
   const std::string n = info.name;
 

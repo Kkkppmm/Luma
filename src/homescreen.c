@@ -4,6 +4,7 @@
 
 #include <adwaita.h>
 #include <stdlib.h>
+#include <string.h>
 
 struct _GabHomescreen
 {
@@ -29,25 +30,37 @@ emit_action (GabHomescreen *self, const char *action, const char *payload)
 }
 
 static void
-show_message (GtkWidget *widget, const char *title, const char *message)
+show_message (GtkWidget *parent, const char *title, const char *message)
 {
-  GtkRoot *root = gtk_widget_get_root (widget);
+  GtkWidget *anchor = parent;
+  if (anchor == NULL)
+    return;
+  /* Prefer an explicit window parent so alerts are not hidden behind a modal. */
+  if (!GTK_IS_WINDOW (anchor))
+    {
+      GtkRoot *root = gtk_widget_get_root (anchor);
+      if (root != NULL)
+        anchor = GTK_WIDGET (root);
+    }
   AdwDialog *dialog = adw_alert_dialog_new (title, message);
   adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "ok", "OK");
   adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "ok");
-  adw_dialog_present (dialog, GTK_WIDGET (root));
+  adw_dialog_present (dialog, anchor);
 }
 
 typedef struct {
   GabHomescreen *self;
-  AdwDialog *dialog;
+  GtkWindow *window;
   AdwEntryRow *name_row;
   AdwEntryRow *dir_row;
   GtkListBox *tmpl_list;
+  GtkWidget *search_entry;
   GabTemplateInfoC *templates;
   int template_count;
   GtkLabel *tmpl_desc;
   int selected_index;
+  GCancellable *browse_cancellable;
+  char *filter_text; /* owned, casefolded; used by list filter */
 } CreateDialogData;
 
 static void
@@ -56,69 +69,259 @@ free_create_data (gpointer user_data)
   CreateDialogData *data = user_data;
   if (data == NULL)
     return;
+  if (data->browse_cancellable != NULL)
+    {
+      g_cancellable_cancel (data->browse_cancellable);
+      g_object_unref (data->browse_cancellable);
+    }
+  g_free (data->filter_text);
   gab_project_free_templates (data->templates, data->template_count);
   g_free (data);
+}
+
+static gboolean
+template_matches_filter (const GabTemplateInfoC *tmpl, const char *filter)
+{
+  if (filter == NULL || *filter == '\0')
+    return TRUE;
+  g_autofree char *hay1 =
+      g_utf8_casefold (tmpl->display_title ? tmpl->display_title : "", -1);
+  g_autofree char *hay2 =
+      g_utf8_casefold (tmpl->description ? tmpl->description : "", -1);
+  g_autofree char *hay3 =
+      g_utf8_casefold (tmpl->category ? tmpl->category : "", -1);
+  return strstr (hay1, filter) != NULL || strstr (hay2, filter) != NULL ||
+         strstr (hay3, filter) != NULL;
+}
+
+static gboolean
+template_list_filter (GtkListBoxRow *row, gpointer user_data)
+{
+  CreateDialogData *data = user_data;
+  int index;
+  if (data == NULL || row == NULL)
+    return FALSE;
+  index = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (row), "template-index")) - 1;
+  if (index < 0 || index >= data->template_count)
+    return FALSE;
+  return template_matches_filter (&data->templates[index], data->filter_text);
+}
+
+static int
+template_row_catalog_index (GtkListBoxRow *row)
+{
+  if (row == NULL)
+    return -1;
+  return GPOINTER_TO_INT (g_object_get_data (G_OBJECT (row), "template-index")) - 1;
+}
+
+static void
+update_template_description (CreateDialogData *data)
+{
+  if (data == NULL || data->tmpl_desc == NULL)
+    return;
+  if (data->templates != NULL && data->selected_index >= 0 &&
+      data->selected_index < data->template_count)
+    {
+      gtk_label_set_text (data->tmpl_desc,
+                          data->templates[data->selected_index].description);
+    }
+  else
+    {
+      gtk_label_set_text (data->tmpl_desc, "No templates match your search.");
+    }
+}
+
+static void
+select_template_row (CreateDialogData *data, GtkListBoxRow *row)
+{
+  int index;
+  if (data == NULL)
+    return;
+  index = template_row_catalog_index (row);
+  if (index < 0 || index >= data->template_count)
+    {
+      data->selected_index = -1;
+      update_template_description (data);
+      return;
+    }
+  data->selected_index = index;
+  update_template_description (data);
 }
 
 static void
 on_template_row_selected (GtkListBox *box, GtkListBoxRow *row, gpointer user_data)
 {
   (void) box;
-  CreateDialogData *data = user_data;
-  if (row == NULL || data->templates == NULL)
-    return;
-  int index = gtk_list_box_row_get_index (row);
-  if (index < 0 || index >= data->template_count)
-    return;
-  data->selected_index = index;
-  gtk_label_set_text (data->tmpl_desc, data->templates[index].description);
+  select_template_row (user_data, row);
 }
 
-static CreateDialogData *
-steal_create_data (AdwDialog *dialog)
+static void
+on_template_row_activated (GtkListBox *box, GtkListBoxRow *row, gpointer user_data)
 {
-  return g_object_steal_data (G_OBJECT (dialog), "create-data");
+  CreateDialogData *data = user_data;
+  (void) box;
+  if (data == NULL || row == NULL)
+    return;
+  gtk_list_box_select_row (data->tmpl_list, row);
+  select_template_row (data, row);
+}
+
+static void
+ensure_visible_selection (CreateDialogData *data)
+{
+  GtkListBoxRow *selected;
+  GtkListBoxRow *row;
+  int i;
+
+  if (data == NULL || data->tmpl_list == NULL)
+    return;
+
+  selected = gtk_list_box_get_selected_row (data->tmpl_list);
+  if (selected != NULL && gtk_widget_get_mapped (GTK_WIDGET (selected)))
+    {
+      select_template_row (data, selected);
+      return;
+    }
+
+  /* Prefer previously selected catalog index if still visible. */
+  if (data->selected_index >= 0)
+    {
+      for (i = 0; (row = gtk_list_box_get_row_at_index (data->tmpl_list, i)) != NULL; i++)
+        {
+          if (template_row_catalog_index (row) == data->selected_index &&
+              gtk_widget_get_child_visible (GTK_WIDGET (row)))
+            {
+              gtk_list_box_select_row (data->tmpl_list, row);
+              select_template_row (data, row);
+              return;
+            }
+        }
+    }
+
+  /* Otherwise select first visible filtered row. */
+  for (i = 0; (row = gtk_list_box_get_row_at_index (data->tmpl_list, i)) != NULL; i++)
+    {
+      if (gtk_widget_get_child_visible (GTK_WIDGET (row)))
+        {
+          gtk_list_box_select_row (data->tmpl_list, row);
+          select_template_row (data, row);
+          return;
+        }
+    }
+
+  data->selected_index = -1;
+  update_template_description (data);
+}
+
+static void
+on_search_changed (GtkSearchEntry *entry, gpointer user_data)
+{
+  CreateDialogData *data = user_data;
+  const char *text;
+  if (data == NULL)
+    return;
+  text = gtk_editable_get_text (GTK_EDITABLE (entry));
+  g_free (data->filter_text);
+  data->filter_text =
+      (text != NULL && *text != '\0') ? g_utf8_casefold (text, -1) : NULL;
+  gtk_list_box_invalidate_filter (data->tmpl_list);
+  ensure_visible_selection (data);
+}
+
+static void
+on_browse_folder_done (GObject *source, GAsyncResult *res, gpointer user_data)
+{
+  CreateDialogData *data = user_data;
+  g_autoptr (GError) error = NULL;
+  g_autoptr (GFile) file = NULL;
+
+  if (data == NULL)
+    return;
+  file = gtk_file_dialog_select_folder_finish (GTK_FILE_DIALOG (source), res, &error);
+  if (file == NULL)
+    return;
+  if (g_cancellable_is_cancelled (data->browse_cancellable))
+    return;
+  g_autofree char *path = g_file_get_path (file);
+  if (path != NULL)
+    gtk_editable_set_text (GTK_EDITABLE (data->dir_row), path);
+}
+
+static void
+on_browse_folder (GtkButton *btn, gpointer user_data)
+{
+  (void) btn;
+  CreateDialogData *data = user_data;
+  GtkFileDialog *dialog;
+  const char *cur;
+  if (data == NULL || data->window == NULL)
+    return;
+  if (data->browse_cancellable == NULL)
+    data->browse_cancellable = g_cancellable_new ();
+  else
+    g_cancellable_reset (data->browse_cancellable);
+
+  dialog = gtk_file_dialog_new ();
+  gtk_file_dialog_set_title (dialog, "Choose projects folder");
+  cur = gtk_editable_get_text (GTK_EDITABLE (data->dir_row));
+  if (cur && *cur)
+    {
+      g_autoptr (GFile) initial = g_file_new_for_path (cur);
+      gtk_file_dialog_set_initial_folder (dialog, initial);
+    }
+  gtk_file_dialog_select_folder (dialog, data->window, data->browse_cancellable,
+                                 on_browse_folder_done, data);
 }
 
 static void
 on_create_clicked (GtkButton *btn, gpointer user_data)
 {
   (void) btn;
-  AdwDialog *dialog = ADW_DIALOG (user_data);
-  CreateDialogData *data = steal_create_data (dialog);
+  CreateDialogData *data = user_data;
+  const char *name;
+  const char *parent;
+  const char *tmpl = "gtk4-adwaita";
+  char *out_path = NULL;
+  char *out_error = NULL;
+  GabHomescreen *self;
+  GtkWindow *window;
+
   if (data == NULL)
     return;
 
-  const char *name = gtk_editable_get_text (GTK_EDITABLE (data->name_row));
-  const char *parent = gtk_editable_get_text (GTK_EDITABLE (data->dir_row));
-  const char *tmpl = "gtk4-adwaita";
+  name = gtk_editable_get_text (GTK_EDITABLE (data->name_row));
+  parent = gtk_editable_get_text (GTK_EDITABLE (data->dir_row));
   if (data->templates != NULL && data->selected_index >= 0 &&
       data->selected_index < data->template_count)
     tmpl = data->templates[data->selected_index].id;
 
   if (name == NULL || *name == '\0')
     {
-      /* Put data back so Cancel/close can still free it, and user can retry */
-      g_object_set_data_full (G_OBJECT (dialog), "create-data", data, free_create_data);
-      show_message (GTK_WIDGET (data->self), "New Project",
+      show_message (GTK_WIDGET (data->window), "New Project",
                     "Please enter a project name.");
       return;
     }
+  if (data->selected_index < 0)
+    {
+      show_message (GTK_WIDGET (data->window), "New Project",
+                    "Please select a template from the list.");
+      return;
+    }
 
-  char *out_path = NULL;
-  char *out_error = NULL;
   if (!gab_project_create (name, parent, tmpl, &out_path, &out_error))
     {
-      g_object_set_data_full (G_OBJECT (dialog), "create-data", data, free_create_data);
-      show_message (GTK_WIDGET (data->self), "New Project",
+      show_message (GTK_WIDGET (data->window), "New Project",
                     out_error ? out_error : "Failed to create project");
       free (out_error);
       return;
     }
 
-  GabHomescreen *self = data->self;
+  self = data->self;
+  window = data->window;
+  g_object_steal_data (G_OBJECT (window), "create-data");
   free_create_data (data);
-  adw_dialog_close (dialog);
+  gtk_window_destroy (window);
   emit_action (self, "open-project", out_path);
   free (out_path);
 }
@@ -127,9 +330,47 @@ static void
 on_cancel_clicked (GtkButton *btn, gpointer user_data)
 {
   (void) btn;
-  AdwDialog *dialog = ADW_DIALOG (user_data);
-  /* Destroy notify on create-data will free */
-  adw_dialog_close (dialog);
+  CreateDialogData *data = user_data;
+  if (data == NULL || data->window == NULL)
+    return;
+  gtk_window_destroy (data->window);
+}
+
+static GtkWidget *
+make_template_row (const GabTemplateInfoC *tmpl, int catalog_index)
+{
+  GtkWidget *row = gtk_list_box_row_new ();
+  GtkWidget *row_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 2);
+  GtkWidget *title;
+  GtkWidget *sub;
+  GtkWidget *cat;
+
+  gtk_widget_set_margin_start (row_box, 12);
+  gtk_widget_set_margin_end (row_box, 12);
+  gtk_widget_set_margin_top (row_box, 10);
+  gtk_widget_set_margin_bottom (row_box, 10);
+
+  title = gtk_label_new (tmpl->display_title);
+  gtk_label_set_xalign (GTK_LABEL (title), 0.0);
+  gtk_widget_add_css_class (title, "title-4");
+
+  cat = gtk_label_new (tmpl->category);
+  gtk_label_set_xalign (GTK_LABEL (cat), 0.0);
+  gtk_widget_add_css_class (cat, "caption");
+  gtk_widget_add_css_class (cat, "accent");
+
+  sub = gtk_label_new (tmpl->description);
+  gtk_label_set_xalign (GTK_LABEL (sub), 0.0);
+  gtk_widget_add_css_class (sub, "dim-label");
+  gtk_label_set_ellipsize (GTK_LABEL (sub), PANGO_ELLIPSIZE_END);
+
+  gtk_box_append (GTK_BOX (row_box), title);
+  gtk_box_append (GTK_BOX (row_box), cat);
+  gtk_box_append (GTK_BOX (row_box), sub);
+  gtk_list_box_row_set_child (GTK_LIST_BOX_ROW (row), row_box);
+  g_object_set_data (G_OBJECT (row), "template-index",
+                     GINT_TO_POINTER (catalog_index + 1));
+  return row;
 }
 
 static void
@@ -138,120 +379,141 @@ on_new_project (GtkButton *btn, GabHomescreen *self)
   (void) btn;
   int tmpl_count = 0;
   GabTemplateInfoC *templates = gab_project_list_templates (&tmpl_count);
+  GtkRoot *root = gtk_widget_get_root (GTK_WIDGET (self));
+  GtkApplication *app = NULL;
+  GtkWidget *win_w;
+  GtkWindow *window;
+  GtkWidget *toolbar;
+  AdwHeaderBar *header;
+  GtkWidget *outer;
+  GtkWidget *intro;
+  AdwPreferencesGroup *meta;
+  AdwEntryRow *name_row;
+  AdwEntryRow *dir_row;
+  char *def_dir;
+  GtkWidget *browse;
+  GtkWidget *search;
+  GtkWidget *desc;
+  GtkWidget *scroll;
+  GtkWidget *list;
+  GtkWidget *actions;
+  GtkWidget *cancel_btn;
+  GtkWidget *create_btn;
+  CreateDialogData *data;
+  int i;
 
-  AdwDialog *dialog = adw_dialog_new ();
-  adw_dialog_set_title (dialog, "New Project");
-  adw_dialog_set_content_width (dialog, 560);
-  adw_dialog_set_content_height (dialog, 640);
-  adw_dialog_set_can_close (dialog, TRUE);
+  if (GTK_IS_WINDOW (root))
+    app = gtk_window_get_application (GTK_WINDOW (root));
 
-  GtkWidget *toolbar = adw_toolbar_view_new ();
-  GtkWidget *header = adw_header_bar_new ();
-  adw_header_bar_set_show_end_title_buttons (ADW_HEADER_BAR (header), TRUE);
-  adw_toolbar_view_add_top_bar (ADW_TOOLBAR_VIEW (toolbar), header);
+  win_w = adw_window_new ();
+  window = GTK_WINDOW (win_w);
+  gtk_window_set_title (window, "New Project");
+  gtk_window_set_default_size (window, 640, 760);
+  gtk_window_set_modal (window, TRUE);
+  if (GTK_IS_WINDOW (root))
+    gtk_window_set_transient_for (window, GTK_WINDOW (root));
+  if (app != NULL)
+    gtk_window_set_application (window, app);
 
-  GtkWidget *outer = gtk_box_new (GTK_ORIENTATION_VERTICAL, 12);
-  gtk_widget_set_margin_start (outer, 16);
-  gtk_widget_set_margin_end (outer, 16);
-  gtk_widget_set_margin_top (outer, 8);
-  gtk_widget_set_margin_bottom (outer, 16);
+  toolbar = adw_toolbar_view_new ();
+  header = ADW_HEADER_BAR (adw_header_bar_new ());
+  adw_header_bar_set_title_widget (
+      header, adw_window_title_new ("New Project", "Pick a starter template"));
+  adw_toolbar_view_add_top_bar (ADW_TOOLBAR_VIEW (toolbar), GTK_WIDGET (header));
 
-  GtkWidget *intro = gtk_label_new (
-      "Click a template in the list below, then Create.");
+  outer = gtk_box_new (GTK_ORIENTATION_VERTICAL, 12);
+  gtk_widget_set_margin_start (outer, 18);
+  gtk_widget_set_margin_end (outer, 18);
+  gtk_widget_set_margin_top (outer, 10);
+  gtk_widget_set_margin_bottom (outer, 18);
+
+  intro = gtk_label_new (
+      "Click a template in the list to select it. Use search to filter by name or category.");
   gtk_widget_add_css_class (intro, "dim-label");
   gtk_label_set_wrap (GTK_LABEL (intro), TRUE);
   gtk_label_set_xalign (GTK_LABEL (intro), 0.0);
   gtk_box_append (GTK_BOX (outer), intro);
 
-  AdwEntryRow *name_row = ADW_ENTRY_ROW (adw_entry_row_new ());
+  meta = ADW_PREFERENCES_GROUP (adw_preferences_group_new ());
+  name_row = ADW_ENTRY_ROW (adw_entry_row_new ());
   adw_preferences_row_set_title (ADW_PREFERENCES_ROW (name_row), "Project name");
+  adw_entry_row_set_show_apply_button (name_row, FALSE);
   gtk_editable_set_text (GTK_EDITABLE (name_row), "my-gnome-app");
-  gtk_widget_add_css_class (GTK_WIDGET (name_row), "card");
+  adw_preferences_group_add (meta, GTK_WIDGET (name_row));
 
-  char *def_dir = gab_project_default_dir ();
-  AdwEntryRow *dir_row = ADW_ENTRY_ROW (adw_entry_row_new ());
+  def_dir = gab_project_default_dir ();
+  dir_row = ADW_ENTRY_ROW (adw_entry_row_new ());
   adw_preferences_row_set_title (ADW_PREFERENCES_ROW (dir_row), "Parent folder");
+  adw_entry_row_set_show_apply_button (dir_row, FALSE);
   gtk_editable_set_text (GTK_EDITABLE (dir_row), def_dir);
   free (def_dir);
-  gtk_widget_add_css_class (GTK_WIDGET (dir_row), "card");
+  browse = gtk_button_new_from_icon_name ("folder-symbolic");
+  gtk_widget_set_valign (browse, GTK_ALIGN_CENTER);
+  gtk_widget_set_tooltip_text (browse, "Browse for folder");
+  gtk_widget_add_css_class (browse, "flat");
+  adw_entry_row_add_suffix (dir_row, browse);
+  adw_preferences_group_add (meta, GTK_WIDGET (dir_row));
+  gtk_box_append (GTK_BOX (outer), GTK_WIDGET (meta));
 
-  gtk_box_append (GTK_BOX (outer), GTK_WIDGET (name_row));
-  gtk_box_append (GTK_BOX (outer), GTK_WIDGET (dir_row));
+  search = gtk_search_entry_new ();
+  gtk_search_entry_set_placeholder_text (GTK_SEARCH_ENTRY (search),
+                                         "Search templates…");
+  gtk_widget_set_hexpand (search, TRUE);
+  gtk_box_append (GTK_BOX (outer), search);
 
-  GtkWidget *tmpl_title = gtk_label_new ("Template");
-  gtk_widget_add_css_class (tmpl_title, "heading");
-  gtk_label_set_xalign (GTK_LABEL (tmpl_title), 0.0);
-  gtk_box_append (GTK_BOX (outer), tmpl_title);
-
-  GtkWidget *desc = gtk_label_new (
-      tmpl_count > 0 ? templates[0].description : "No templates available");
+  desc = gtk_label_new (tmpl_count > 0 ? templates[0].description
+                                       : "No templates available");
   gtk_widget_add_css_class (desc, "dim-label");
   gtk_label_set_wrap (GTK_LABEL (desc), TRUE);
   gtk_label_set_xalign (GTK_LABEL (desc), 0.0);
   gtk_box_append (GTK_BOX (outer), desc);
 
-  GtkWidget *scroll = gtk_scrolled_window_new ();
+  scroll = gtk_scrolled_window_new ();
   gtk_widget_set_vexpand (scroll, TRUE);
-  gtk_widget_set_size_request (scroll, -1, 280);
-  gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scroll),
-                                  GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+  gtk_widget_set_hexpand (scroll, TRUE);
+  gtk_widget_set_size_request (scroll, -1, 340);
+  gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scroll), GTK_POLICY_NEVER,
+                                  GTK_POLICY_AUTOMATIC);
 
-  GtkWidget *list = gtk_list_box_new ();
+  list = gtk_list_box_new ();
   gtk_widget_add_css_class (list, "boxed-list");
   gtk_list_box_set_selection_mode (GTK_LIST_BOX (list), GTK_SELECTION_SINGLE);
   gtk_list_box_set_activate_on_single_click (GTK_LIST_BOX (list), TRUE);
 
-  for (int i = 0; i < tmpl_count; i++)
-    {
-      GtkWidget *row = gtk_list_box_row_new ();
-      GtkWidget *row_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 2);
-      gtk_widget_set_margin_start (row_box, 12);
-      gtk_widget_set_margin_end (row_box, 12);
-      gtk_widget_set_margin_top (row_box, 10);
-      gtk_widget_set_margin_bottom (row_box, 10);
-
-      GtkWidget *title = gtk_label_new (templates[i].display_title);
-      gtk_label_set_xalign (GTK_LABEL (title), 0.0);
-      gtk_widget_add_css_class (title, "title-4");
-
-      GtkWidget *sub = gtk_label_new (templates[i].description);
-      gtk_label_set_xalign (GTK_LABEL (sub), 0.0);
-      gtk_widget_add_css_class (sub, "dim-label");
-      gtk_label_set_ellipsize (GTK_LABEL (sub), PANGO_ELLIPSIZE_END);
-
-      gtk_box_append (GTK_BOX (row_box), title);
-      gtk_box_append (GTK_BOX (row_box), sub);
-      gtk_list_box_row_set_child (GTK_LIST_BOX_ROW (row), row_box);
-      gtk_list_box_append (GTK_LIST_BOX (list), row);
-    }
+  for (i = 0; i < tmpl_count; i++)
+    gtk_list_box_append (GTK_LIST_BOX (list), make_template_row (&templates[i], i));
 
   gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (scroll), list);
   gtk_box_append (GTK_BOX (outer), scroll);
 
-  GtkWidget *actions = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 8);
+  actions = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 8);
   gtk_widget_set_halign (actions, GTK_ALIGN_END);
-  GtkWidget *cancel_btn = gtk_button_new_with_label ("Cancel");
-  GtkWidget *create_btn = gtk_button_new_with_label ("Create");
+  cancel_btn = gtk_button_new_with_label ("Cancel");
+  create_btn = gtk_button_new_with_label ("Create");
   gtk_widget_add_css_class (create_btn, "suggested-action");
   gtk_box_append (GTK_BOX (actions), cancel_btn);
   gtk_box_append (GTK_BOX (actions), create_btn);
   gtk_box_append (GTK_BOX (outer), actions);
 
   adw_toolbar_view_set_content (ADW_TOOLBAR_VIEW (toolbar), outer);
-  adw_dialog_set_child (dialog, toolbar);
+  adw_window_set_content (ADW_WINDOW (window), toolbar);
 
-  CreateDialogData *data = g_new0 (CreateDialogData, 1);
+  data = g_new0 (CreateDialogData, 1);
   data->self = self;
-  data->dialog = dialog;
+  data->window = window;
   data->name_row = name_row;
   data->dir_row = dir_row;
   data->tmpl_list = GTK_LIST_BOX (list);
+  data->search_entry = search;
   data->templates = templates;
   data->template_count = tmpl_count;
   data->tmpl_desc = GTK_LABEL (desc);
-  data->selected_index = 0;
+  data->selected_index = tmpl_count > 0 ? 0 : -1;
+  data->browse_cancellable = g_cancellable_new ();
+  data->filter_text = NULL;
 
-  g_object_set_data_full (G_OBJECT (dialog), "create-data", data, free_create_data);
+  g_object_set_data_full (G_OBJECT (window), "create-data", data, free_create_data);
+  gtk_list_box_set_filter_func (GTK_LIST_BOX (list), template_list_filter, data, NULL);
 
   if (tmpl_count > 0)
     {
@@ -261,11 +523,14 @@ on_new_project (GtkButton *btn, GabHomescreen *self)
     }
 
   g_signal_connect (list, "row-selected", G_CALLBACK (on_template_row_selected), data);
-  g_signal_connect (cancel_btn, "clicked", G_CALLBACK (on_cancel_clicked), dialog);
-  g_signal_connect (create_btn, "clicked", G_CALLBACK (on_create_clicked), dialog);
+  g_signal_connect (list, "row-activated", G_CALLBACK (on_template_row_activated), data);
+  g_signal_connect (search, "search-changed", G_CALLBACK (on_search_changed), data);
+  g_signal_connect (browse, "clicked", G_CALLBACK (on_browse_folder), data);
+  g_signal_connect (cancel_btn, "clicked", G_CALLBACK (on_cancel_clicked), data);
+  g_signal_connect (create_btn, "clicked", G_CALLBACK (on_create_clicked), data);
 
-  GtkRoot *root = gtk_widget_get_root (GTK_WIDGET (self));
-  adw_dialog_present (dialog, GTK_WIDGET (root));
+  gtk_window_present (window);
+  gtk_widget_grab_focus (GTK_WIDGET (name_row));
 }
 
 static void
