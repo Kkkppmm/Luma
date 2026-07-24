@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.AppBuilder" path="/org/gnome/AppBuilder/">
+    <key name="window-width" type="i">
+      <default>1280</default>
+      <summary>Window width</summary>
+    </key>
+    <key name="window-height" type="i">
+      <default>800</default>
+      <summary>Window height</summary>
+    </key>
+    <key name="window-maximized" type="b">
+      <default>false</default>
+      <summary>Window maximized</summary>
+    </key>
+    <key name="recent-projects" type="as">
+      <default>[]</default>
+      <summary>Recent project paths</summary>
+    </key>
+    <key name="projects-directory" type="s">
+      <default>''</default>
+      <summary>Default directory for new projects</summary>
+    </key>
+    <key name="editor-font" type="s">
+      <default>'Monospace 12'</default>
+      <summary>Editor font</summary>
+    </key>
+    <key name="tab-width" type="i">
+      <default>2</default>
+      <summary>Tab width for formatting</summary>
+    </key>
+    <key name="insert-spaces" type="b">
+      <default>true</default>
+      <summary>Insert spaces instead of tabs</summary>
+    </key>
+    <key name="show-line-numbers" type="b">
+      <default>true</default>
+      <summary>Show line numbers</summary>
+    </key>
+    <key name="auto-indent" type="b">
+      <default>true</default>
+      <summary>Auto indent</summary>
+    </key>
+  </schema>
+</schemalist>
