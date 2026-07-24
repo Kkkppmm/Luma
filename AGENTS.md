@@ -35,3 +35,9 @@ GSETTINGS_SCHEMA_DIR=build/data GDK_BACKEND=x11 ./build/src/luma-builder
 | Check for Updates | Menu, `Ctrl+U`, or `app.check-updates` |
 
 Flatpak is optional (only for SDK installs). Update auto-check uses GSettings key `auto-check-updates`.
+
+### New Project caveats
+
+- New Project is a **modal `AdwWindow`** (not an `AdwAlertDialog` / combo). Templates are a `GtkListBox`; search uses `filter_func` (do not rebuild the list from row activation — that crashes/skips clicks).
+- After Create, destroy+open is deferred to idle; destroying the modal inside the Create click handler GPF’s in libgtk.
+- Single GApplication instance: kill leftover `luma-builder` before relaunching a rebuilt binary.
