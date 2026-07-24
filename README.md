@@ -41,6 +41,16 @@ See [docs/screenshots/](docs/screenshots/) for images of every window and the ed
 ![Editor context menu](docs/screenshots/11-editor-context-menu.png)
 ![All windows](docs/screenshots/13-all-windows.png)
 
+## Packages / releases
+
+See [docs/packaging.md](docs/packaging.md). Build with:
+
+```bash
+./scripts/build-packages.sh
+```
+
+Produces `.deb` (Debian/Ubuntu), `.rpm` (Fedora/RHEL-like), and a portable `.tar.gz`.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
