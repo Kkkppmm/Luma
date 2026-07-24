@@ -157,7 +157,10 @@ gab_help_view_init (GabHelpView *self)
   gtk_stack_add_named (self->stack,
                        make_page ("Keyboard Shortcuts",
                                   "Ctrl+S — Save current file\n"
+                                  "Ctrl+B — Build the open project (meson)\n"
+                                  "F5 — Build and run the project\n"
                                   "Ctrl+Shift+F — Format whole document\n"
+                                  "Ctrl+U — Check for updates from GitHub\n"
                                   "F1 — Help window\n"
                                   "Ctrl+Q — Quit\n\n"
                                   "Right-click (or the Tools menu) for indent, unindent, trim, "

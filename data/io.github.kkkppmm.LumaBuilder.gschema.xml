@@ -41,5 +41,13 @@
       <default>true</default>
       <summary>Auto indent</summary>
     </key>
+    <key name="auto-check-updates" type="b">
+      <default>true</default>
+      <summary>Check GitHub for Luma Builder updates on startup</summary>
+      <description>
+        When enabled, Luma Builder queries the GitHub releases API on launch and
+        offers to download and install a newer package if one is available.
+      </description>
+    </key>
   </schema>
 </schemalist>

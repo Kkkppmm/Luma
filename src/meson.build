@@ -21,6 +21,10 @@ sources = files(
   'sdk_manager_c.cpp',
   'code_formatter.cpp',
   'code_formatter_c.cpp',
+  'build_runner.cpp',
+  'build_runner_c.cpp',
+  'updater.cpp',
+  'updater_c.cpp',
 )
 
 gnome_app_builder = executable(

@@ -318,6 +318,7 @@ gab_homescreen_init (GabHomescreen *self)
   /* Primary menu for smooth access to secondary windows */
   GMenu *menu = g_menu_new ();
   g_menu_append (menu, "SDK Manager", "app.sdk");
+  g_menu_append (menu, "Check for Updates", "app.check-updates");
   g_menu_append (menu, "Help", "app.help");
   g_menu_append (menu, "Docs", "app.docs");
   g_menu_append (menu, "About Luma Builder", "app.about");

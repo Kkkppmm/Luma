@@ -4,7 +4,7 @@
 
 ### Product
 
-**Luma Builder** (`luma-builder`, app id `io.github.kkkppmm.LumaBuilder`) is a GTK4 / libadwaita desktop IDE in **C + C++** (Meson). Homescreen + editor live in the main window; Help / Docs / SDK Manager / About open as separate windows. Editor format tools are on the **right-click** context menu (and the header Tools menu).
+**Luma Builder** (`luma-builder`, app id `io.github.kkkppmm.LumaBuilder`) is a GTK4 / libadwaita desktop IDE in **C + C++** (Meson). Homescreen + editor live in the main window; Help / Docs / SDK Manager / About open as separate windows. Editor format tools are on the **right-click** context menu (and the header Tools menu). **Build / Run** run `meson` for the open project. **Check for Updates** hits the GitHub releases API (`Kkkppmm/Luma`) and can install `.deb` / `.rpm` / `.tar.gz` (install may show a polkit password prompt).
 
 ### Build & run (dev)
 
@@ -32,5 +32,6 @@ GSETTINGS_SCHEMA_DIR=build/data GDK_BACKEND=x11 ./build/src/luma-builder
 | Docs | Menu or `app.docs` |
 | SDK Manager | Home card, menu, or `app.sdk` |
 | About | Menu or `app.about` |
+| Check for Updates | Menu, `Ctrl+U`, or `app.check-updates` |
 
-Flatpak is optional (only for SDK installs).
+Flatpak is optional (only for SDK installs). Update auto-check uses GSettings key `auto-check-updates`.

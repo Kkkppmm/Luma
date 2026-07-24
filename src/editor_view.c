@@ -1,4 +1,5 @@
 #include "editor_view.h"
+#include "build_runner_c.h"
 #include "code_formatter_c.h"
 #include "project_manager_c.h"
 #include "config.h"
@@ -14,12 +15,16 @@ struct _GabEditorView
   char *project_path;
   char *current_file;
   gboolean dirty;
+  gboolean busy;
 
   GtkWidget *title_widget;
   GtkListBox *file_list;
   GtkSourceView *source_view;
   GtkSourceBuffer *buffer;
+  GtkTextBuffer *build_log;
   GtkLabel *status;
+  GtkWidget *build_btn;
+  GtkWidget *run_btn;
   GSettings *settings;
   GSimpleActionGroup *actions;
 };
@@ -348,6 +353,141 @@ on_save_clicked (GtkButton *btn, GabEditorView *self)
   save_current_file (self);
 }
 
+static void
+append_build_log (GabEditorView *self, const char *text)
+{
+  if (text == NULL || *text == '\0')
+    return;
+  GtkTextIter end;
+  gtk_text_buffer_get_end_iter (self->build_log, &end);
+  gtk_text_buffer_insert (self->build_log, &end, text, -1);
+  if (text[strlen (text) - 1] != '\n')
+    gtk_text_buffer_insert (self->build_log, &end, "\n", -1);
+}
+
+static void
+set_busy (GabEditorView *self, gboolean busy)
+{
+  self->busy = busy;
+  gtk_widget_set_sensitive (self->build_btn, !busy);
+  gtk_widget_set_sensitive (self->run_btn, !busy);
+}
+
+typedef struct {
+  GabEditorView *self;
+  char *log;
+  char *error;
+  gboolean ok;
+  gboolean is_run;
+} BuildJobResult;
+
+static gboolean
+on_build_job_done (gpointer user_data)
+{
+  BuildJobResult *res = user_data;
+  GabEditorView *self = res->self;
+  append_build_log (self, res->log);
+  if (!res->ok && res->error)
+    append_build_log (self, res->error);
+  if (res->ok)
+    set_status (self, res->is_run ? "App launched" : "Build succeeded");
+  else
+    set_status (self, res->is_run ? "Run failed — see build log" : "Build failed — see build log");
+  set_busy (self, FALSE);
+  free (res->log);
+  free (res->error);
+  g_object_unref (self);
+  g_free (res);
+  return G_SOURCE_REMOVE;
+}
+
+typedef struct {
+  GabEditorView *self;
+  char *project_path;
+  gboolean is_run;
+} BuildJob;
+
+static gpointer
+build_job_thread (gpointer user_data)
+{
+  BuildJob *job = user_data;
+  char *log = NULL;
+  char *error = NULL;
+  gboolean ok;
+  if (job->is_run)
+    ok = gab_build_run (job->project_path, &log, &error);
+  else
+    ok = gab_build_compile (job->project_path, &log, &error);
+
+  BuildJobResult *res = g_new0 (BuildJobResult, 1);
+  res->self = job->self;
+  res->log = log;
+  res->error = error;
+  res->ok = ok;
+  res->is_run = job->is_run;
+  g_idle_add (on_build_job_done, res);
+
+  g_free (job->project_path);
+  g_free (job);
+  return NULL;
+}
+
+static void
+start_build_job (GabEditorView *self, gboolean is_run)
+{
+  if (self->project_path == NULL)
+    {
+      set_status (self, "No project open");
+      return;
+    }
+  if (self->busy)
+    return;
+
+  if (self->dirty)
+    save_current_file (self);
+
+  gtk_text_buffer_set_text (self->build_log, "", 0);
+  append_build_log (self, is_run ? "=== Run ===" : "=== Build ===");
+  set_busy (self, TRUE);
+  set_status (self, is_run ? "Building and launching…" : "Building…");
+
+  BuildJob *job = g_new0 (BuildJob, 1);
+  job->self = g_object_ref (self);
+  job->project_path = g_strdup (self->project_path);
+  job->is_run = is_run;
+  g_thread_new ("luma-build", build_job_thread, job);
+}
+
+static void
+on_build_clicked (GtkButton *btn, GabEditorView *self)
+{
+  (void) btn;
+  start_build_job (self, FALSE);
+}
+
+static void
+on_run_clicked (GtkButton *btn, GabEditorView *self)
+{
+  (void) btn;
+  start_build_job (self, TRUE);
+}
+
+static void
+act_build (GSimpleAction *a, GVariant *p, gpointer user_data)
+{
+  (void) a;
+  (void) p;
+  start_build_job (GAB_EDITOR_VIEW (user_data), FALSE);
+}
+
+static void
+act_run (GSimpleAction *a, GVariant *p, gpointer user_data)
+{
+  (void) a;
+  (void) p;
+  start_build_job (GAB_EDITOR_VIEW (user_data), TRUE);
+}
+
 static gboolean
 on_save_shortcut (GtkWidget *widget, GVariant *args, gpointer user_data)
 {
@@ -363,6 +503,24 @@ on_format_shortcut (GtkWidget *widget, GVariant *args, gpointer user_data)
   (void) widget;
   (void) args;
   act_format_document (NULL, NULL, user_data);
+  return TRUE;
+}
+
+static gboolean
+on_build_shortcut (GtkWidget *widget, GVariant *args, gpointer user_data)
+{
+  (void) widget;
+  (void) args;
+  start_build_job (GAB_EDITOR_VIEW (user_data), FALSE);
+  return TRUE;
+}
+
+static gboolean
+on_run_shortcut (GtkWidget *widget, GVariant *args, gpointer user_data)
+{
+  (void) widget;
+  (void) args;
+  start_build_job (GAB_EDITOR_VIEW (user_data), TRUE);
   return TRUE;
 }
 
@@ -386,6 +544,12 @@ build_tools_menu (void)
 
   g_menu_append (root, "Save", "editor.save");
 
+  GMenu *build = g_menu_new ();
+  g_menu_append (build, "Build Project", "editor.build");
+  g_menu_append (build, "Run Project", "editor.run");
+  g_menu_append_section (root, "Build", G_MENU_MODEL (build));
+  g_object_unref (build);
+
   g_object_unref (format);
   g_object_unref (edit);
   return G_MENU_MODEL (root);
@@ -403,6 +567,8 @@ install_editor_actions (GabEditorView *self)
       { .name = "trim", .activate = act_trim },
       { .name = "sort-lines", .activate = act_sort_lines },
       { .name = "toggle-comment", .activate = act_toggle_comment },
+      { .name = "build", .activate = act_build },
+      { .name = "run", .activate = act_run },
   };
 
   self->actions = g_simple_action_group_new ();
@@ -493,14 +659,32 @@ gab_editor_view_init (GabEditorView *self)
   gtk_widget_add_css_class (save_btn, "flat");
   g_signal_connect (save_btn, "clicked", G_CALLBACK (on_save_clicked), self);
   adw_header_bar_pack_end (header, save_btn);
+
+  self->run_btn = gtk_button_new_from_icon_name ("media-playback-start-symbolic");
+  gtk_widget_set_tooltip_text (self->run_btn, "Build & Run (F5)");
+  gtk_widget_add_css_class (self->run_btn, "suggested-action");
+  g_signal_connect (self->run_btn, "clicked", G_CALLBACK (on_run_clicked), self);
+  adw_header_bar_pack_end (header, self->run_btn);
+
+  self->build_btn = gtk_button_new_from_icon_name ("system-run-symbolic");
+  gtk_widget_set_tooltip_text (self->build_btn, "Build (Ctrl+B)");
+  gtk_widget_add_css_class (self->build_btn, "flat");
+  g_signal_connect (self->build_btn, "clicked", G_CALLBACK (on_build_clicked), self);
+  adw_header_bar_pack_end (header, self->build_btn);
+
   gtk_box_append (GTK_BOX (self), GTK_WIDGET (header));
+
+  GtkWidget *outer = gtk_paned_new (GTK_ORIENTATION_VERTICAL);
+  gtk_widget_set_vexpand (outer, TRUE);
+  gtk_widget_set_hexpand (outer, TRUE);
+  gtk_box_append (GTK_BOX (self), outer);
 
   GtkWidget *paned = gtk_paned_new (GTK_ORIENTATION_HORIZONTAL);
   gtk_widget_set_vexpand (paned, TRUE);
   gtk_widget_set_hexpand (paned, TRUE);
   gtk_paned_set_resize_start_child (GTK_PANED (paned), FALSE);
   gtk_paned_set_shrink_start_child (GTK_PANED (paned), FALSE);
-  gtk_box_append (GTK_BOX (self), paned);
+  gtk_paned_set_start_child (GTK_PANED (outer), paned);
 
   GtkWidget *sidebar = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
   gtk_widget_set_size_request (sidebar, 240, -1);
@@ -564,7 +748,31 @@ gab_editor_view_init (GabEditorView *self)
   gtk_paned_set_end_child (GTK_PANED (paned), scroll);
   gtk_paned_set_position (GTK_PANED (paned), 260);
 
-  self->status = GTK_LABEL (gtk_label_new ("Right-click the editor for tools"));
+  GtkWidget *log_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+  GtkWidget *log_label = gtk_label_new ("Build Log");
+  gtk_widget_add_css_class (log_label, "heading");
+  gtk_label_set_xalign (GTK_LABEL (log_label), 0.0);
+  gtk_widget_set_margin_start (log_label, 10);
+  gtk_widget_set_margin_top (log_label, 6);
+  gtk_widget_set_margin_bottom (log_label, 4);
+  gtk_box_append (GTK_BOX (log_box), log_label);
+
+  self->build_log = gtk_text_buffer_new (NULL);
+  GtkWidget *log_view = gtk_text_view_new_with_buffer (self->build_log);
+  gtk_text_view_set_editable (GTK_TEXT_VIEW (log_view), FALSE);
+  gtk_text_view_set_cursor_visible (GTK_TEXT_VIEW (log_view), FALSE);
+  gtk_text_view_set_monospace (GTK_TEXT_VIEW (log_view), TRUE);
+  gtk_text_view_set_wrap_mode (GTK_TEXT_VIEW (log_view), GTK_WRAP_WORD_CHAR);
+  GtkWidget *log_scroll = gtk_scrolled_window_new ();
+  gtk_widget_set_vexpand (log_scroll, TRUE);
+  gtk_widget_set_size_request (log_scroll, -1, 120);
+  gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (log_scroll), log_view);
+  gtk_box_append (GTK_BOX (log_box), log_scroll);
+  gtk_paned_set_end_child (GTK_PANED (outer), log_box);
+  gtk_paned_set_resize_end_child (GTK_PANED (outer), FALSE);
+  gtk_paned_set_position (GTK_PANED (outer), 520);
+
+  self->status = GTK_LABEL (gtk_label_new ("Build · Run · right-click for format tools"));
   gtk_widget_add_css_class (GTK_WIDGET (self->status), "dim-label");
   gtk_label_set_xalign (self->status, 0.0);
   gtk_widget_set_margin_start (GTK_WIDGET (self->status), 12);
@@ -585,6 +793,14 @@ gab_editor_view_init (GabEditorView *self)
       gtk_shortcut_new (
           gtk_keyval_trigger_new (GDK_KEY_F, GDK_CONTROL_MASK | GDK_SHIFT_MASK),
           gtk_callback_action_new (on_format_shortcut, self, NULL)));
+  gtk_shortcut_controller_add_shortcut (
+      GTK_SHORTCUT_CONTROLLER (keys),
+      gtk_shortcut_new (gtk_keyval_trigger_new (GDK_KEY_b, GDK_CONTROL_MASK),
+                        gtk_callback_action_new (on_build_shortcut, self, NULL)));
+  gtk_shortcut_controller_add_shortcut (
+      GTK_SHORTCUT_CONTROLLER (keys),
+      gtk_shortcut_new (gtk_keyval_trigger_new (GDK_KEY_F5, 0),
+                        gtk_callback_action_new (on_run_shortcut, self, NULL)));
   gtk_widget_add_controller (GTK_WIDGET (self), keys);
 }
 
